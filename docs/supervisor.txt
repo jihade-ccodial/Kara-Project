@@ -1,0 +1,24 @@
+sudo apt-get install supervisor
+
+configuration -> /etc/supervisor/conf.d
+
+kara-worker.conf inside /etc/supervisor/conf.d
+
+[program:kara-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=php /var/www/html/artisan queue:work --sleep=3 --tries=3 --max-time=4800
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=ubuntu
+numprocs=1
+redirect_stderr=true
+stdout_logfile=/var/www/html/storage/logs/worker.log
+stopwaitsecs=4800
+
+
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl start kara-worker:*
+sudo systemctl stop supervisor
