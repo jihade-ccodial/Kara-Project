@@ -137,11 +137,18 @@ class GoogleCalendars
     }
 
     //write function to get google calendar events
-    public static function get_events($calendar_id, $timeMin, $timeMax)
+    public static function get_events($calendar_id, $timeMin, $timeMax, $user = null, $maxResults = 250)
     {
-        $service = app(Google::class)->connectUsing(Auth::user()->google_token, Auth::user()->google_refresh_token)->service('Calendar');
+        // Support both web (Auth::user()) and command (explicit user) contexts
+        $user = $user ?? Auth::user();
+        
+        if (!$user) {
+            throw new \Exception('User not authenticated');
+        }
+        
+        $service = app(Google::class)->connectUser($user)->service('Calendar');
         $optParams = [
-            'maxResults' => 10,
+            'maxResults' => $maxResults,
             'orderBy' => 'startTime',
             'singleEvents' => true,
             'timeMin' => $timeMin,
@@ -150,5 +157,208 @@ class GoogleCalendars
         $results = $service->events->listEvents($calendar_id, $optParams);
 
         return $results->getItems();
+    }
+
+    /**
+     * Fetch upcoming 1-on-1 meetings for a user
+     * Filters events containing "1:1" or "one-on-one" in the title
+     * Identifies team members from attendees
+     * 
+     * @param \App\Models\User $user The user to fetch meetings for
+     * @param int $daysAhead Number of days to look ahead (default: 7)
+     * @param string|null $calendarId Calendar ID (default: primary)
+     * @return array Structured data for meeting prep screen
+     */
+    public static function get_one_on_one_meetings($user, int $daysAhead = 7, ?string $calendarId = null): array
+    {
+        // Use primary calendar if not specified
+        $calendarId = $calendarId ?? $user->google_calendar_id ?? 'primary';
+
+        // Calculate time range
+        $timeMin = Carbon::now()->toRfc3339String();
+        $timeMax = Carbon::now()->addDays($daysAhead)->toRfc3339String();
+
+        // Fetch events using existing method
+        $events = self::get_events($calendarId, $timeMin, $timeMax, $user, 250);
+
+        // Filter and process 1-on-1 meetings
+        $oneOnOneMeetings = [];
+        $userEmail = strtolower($user->google_name ?? $user->email);
+
+        foreach ($events as $event) {
+            $summary = $event->getSummary() ?? '';
+            
+            // Check if event title contains 1-on-1 keywords
+            if (!self::isOneOnOneMeeting($summary)) {
+                continue;
+            }
+
+            // Get event details
+            $start = $event->getStart();
+            $end = $event->getEnd();
+            $startTime = $start->getDateTime() ?? $start->getDate();
+            $endTime = $end->getDateTime() ?? $end->getDate();
+
+            // Identify team member from attendees
+            $attendees = $event->getAttendees() ?? [];
+            $teamMember = self::identifyTeamMember($attendees, $user, $userEmail);
+
+            // Extract meeting link (Google Meet, Zoom, etc.)
+            $meetingLink = self::extractMeetingLink($event);
+
+            // Build structured data for meeting prep screen
+            $oneOnOneMeetings[] = [
+                'meeting_id' => $event->getId(),
+                'meeting_title' => $summary,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'start_time_formatted' => Carbon::parse($startTime)->format('Y-m-d H:i:s'),
+                'end_time_formatted' => Carbon::parse($endTime)->format('Y-m-d H:i:s'),
+                'duration_minutes' => Carbon::parse($startTime)->diffInMinutes(Carbon::parse($endTime)),
+                'description' => $event->getDescription() ?? '',
+                'location' => $event->getLocation() ?? '',
+                'meeting_link' => $meetingLink,
+                'team_member' => $teamMember,
+                'attendees' => self::formatAttendees($attendees),
+                'days_until' => Carbon::now()->diffInDays(Carbon::parse($startTime), false),
+                'is_today' => Carbon::parse($startTime)->isToday(),
+                'is_tomorrow' => Carbon::parse($startTime)->isTomorrow(),
+            ];
+        }
+
+        // Sort by start time
+        usort($oneOnOneMeetings, function ($a, $b) {
+            return strtotime($a['start_time']) <=> strtotime($b['start_time']);
+        });
+
+        return $oneOnOneMeetings;
+    }
+
+    /**
+     * Check if event title indicates a 1-on-1 meeting
+     */
+    protected static function isOneOnOneMeeting(string $title): bool
+    {
+        $titleLower = strtolower($title);
+        
+        $keywords = [
+            '1:1',
+            '1-on-1',
+            'one-on-one',
+            'one on one',
+            '1-1',
+            '1 to 1',
+        ];
+
+        foreach ($keywords as $keyword) {
+            if (strpos($titleLower, $keyword) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Identify team member from event attendees
+     */
+    protected static function identifyTeamMember(array $attendees, $user, string $userEmail): ?array
+    {
+        // Get organization - handle both session-based (web) and direct (command) contexts
+        $organization = null;
+        if (session()->has('organization')) {
+            $organization = session('organization');
+        } else {
+            // For command context, get first organization
+            $organization = $user->organizations()->first();
+        }
+
+        if (!$organization) {
+            return null;
+        }
+
+        foreach ($attendees as $attendee) {
+            $attendeeEmail = strtolower($attendee->getEmail() ?? '');
+            
+            // Skip the manager's own email
+            if ($attendeeEmail === $userEmail || ($attendee->getSelf() ?? false)) {
+                continue;
+            }
+
+            // Try to find matching member in organization
+            $member = \App\Models\Member::where('organization_id', $organization->id)
+                ->where('email', $attendeeEmail)
+                ->where('active', true)
+                ->first();
+
+            if ($member) {
+                return [
+                    'id' => $member->id,
+                    'name' => $member->full_name,
+                    'first_name' => $member->firstName,
+                    'last_name' => $member->lastName,
+                    'email' => $member->email,
+                    'matched' => true,
+                ];
+            }
+        }
+
+        // If no member found, return first non-manager attendee info
+        foreach ($attendees as $attendee) {
+            $attendeeEmail = strtolower($attendee->getEmail() ?? '');
+            if ($attendeeEmail !== $userEmail && !($attendee->getSelf() ?? false)) {
+                return [
+                    'id' => null,
+                    'name' => $attendee->getDisplayName() ?? $attendeeEmail,
+                    'email' => $attendeeEmail,
+                    'matched' => false,
+                    'note' => 'Not found in team members - may need to add to HubSpot',
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract meeting link (Google Meet, Zoom, etc.) from event
+     */
+    protected static function extractMeetingLink($event): ?string
+    {
+        // Check for Google Meet link in conference data
+        $conferenceData = $event->getConferenceData();
+        if ($conferenceData) {
+            $entryPoints = $conferenceData->getEntryPoints();
+            if ($entryPoints && count($entryPoints) > 0) {
+                return $entryPoints[0]->getUri();
+            }
+        }
+
+        // Check description for meeting links
+        $description = $event->getDescription() ?? '';
+        if (preg_match('/(https?:\/\/[^\s]+)/', $description, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * Format attendees list
+     */
+    protected static function formatAttendees(array $attendees): array
+    {
+        $formatted = [];
+        
+        foreach ($attendees as $attendee) {
+            $formatted[] = [
+                'email' => $attendee->getEmail(),
+                'display_name' => $attendee->getDisplayName() ?? $attendee->getEmail(),
+                'response_status' => $attendee->getResponseStatus() ?? 'needsAction',
+                'self' => $attendee->getSelf() ?? false,
+            ];
+        }
+
+        return $formatted;
     }
 }
