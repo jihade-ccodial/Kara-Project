@@ -121,6 +121,9 @@ Route::group(['middleware'=> ['auth', 'impersonate']], function() {
         // Google Calendar 1-on-1 meetings API endpoint
         Route::get('one-on-ones', [\App\Http\Controllers\Client\OneOnOneMeetingController::class, 'index'])->name('one-on-ones.index');
 
+        // AI Deal Briefing endpoint
+        Route::get('deal/{deal}/briefing', [\App\Http\Controllers\Client\DealBriefingController::class, 'generate'])->name('deal.briefing');
+
         Route::post('meeting/{meeting}/todos/datatable', [TodoController::class, 'todosDatatable'])->name('meeting.todos.datatable');
         Route::post('meeting/{meeting}/todos', [TodoController::class, 'store'])->name('meeting.todos.store');
         Route::put('meeting/{meeting}/todos/{todo}', [TodoController::class, 'update'])->name('meeting.todos.update');
