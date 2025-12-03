@@ -6,6 +6,8 @@
 /vendor
 .env
 .env.backup
+.env.stage
+.env.production
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml
@@ -14,3 +16,5 @@ npm-debug.log
 yarn-error.log
 /.idea
 /.vscode
+docker-deploy/.env.docker
+docs/git deployment token
