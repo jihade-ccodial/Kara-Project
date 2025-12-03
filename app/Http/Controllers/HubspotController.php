@@ -47,7 +47,8 @@ class HubspotController extends Controller
     public function hubspotCallback()
     {
         try {
-            $hubspotUser = Socialite::driver('hubspot')->user();
+            // Use stateless() to avoid InvalidStateException with OAuth
+            $hubspotUser = Socialite::driver('hubspot')->stateless()->user();
 
             // All providers...
             //$googleUser->getId();

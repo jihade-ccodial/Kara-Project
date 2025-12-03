@@ -124,32 +124,25 @@ class DealController extends Controller
                 $q->where('active',1);
             });
             //$deals_with_warnings=[];
+            // SQLite-compatible date difference queries (julianday instead of DATEDIFF/NOW)
             if ( in_array( DealWarning::LAST_ACTIVITY->value, $_POST['warnings'] ) ) {
-                //$deals_= clone $deals;
-                //$deals_with_warnings[] = $deals_->whereRaw('DATEDIFF(NOW(), deals.hubspot_updatedAt) > ?', [$activity_days]);
-                $deals->whereRaw('DATEDIFF(NOW(), deals.hubspot_updatedAt) > ?', [DealWarning::LAST_ACTIVITY->days()]);
+                $deals->whereRaw("julianday('now') - julianday(deals.hubspot_updatedAt) > ?", [DealWarning::LAST_ACTIVITY->days()]);
             }
             if ( in_array( DealWarning::CLOSE_DATE->value, $_POST['warnings'] ) ) {
-                //$deals_= clone $deals;
-                //$deals_with_warnings[] = $deals_->whereRaw('DATEDIFF(NOW(), deals.closedate) > ?', [0]);
-                $deals->whereRaw('DATEDIFF(NOW(), deals.closedate) > ?', [0]);
+                $deals->whereRaw("julianday('now') - julianday(deals.closedate) > ?", [0]);
             }
             if ( in_array( DealWarning::STAGE_TIME_SPEND->value, $_POST['warnings'] ) ) {
-                //$deals_= clone $deals;
-                //$deals_with_warnings[] = $deals_->whereRaw('DATEDIFF(NOW(), deals.hs_date_entered) > ?', [$activity_days]);
-                $deals->whereRaw('DATEDIFF(NOW(), deals.hs_date_entered) > ?', [DealWarning::STAGE_TIME_SPEND->days()]);
+                $deals->whereRaw("julianday('now') - julianday(deals.hs_date_entered) > ?", [DealWarning::STAGE_TIME_SPEND->days()]);
             }
             if ( in_array( DealWarning::CREATION_DATE->value, $_POST['warnings'] ) ) {
-                //$deals_= clone $deals;
-                //$deals_with_warnings[] = $deals_->whereRaw('DATEDIFF(NOW(), deals.hs_date_entered) > ?', [$activity_days]);
-                $deals->whereRaw('DATEDIFF(NOW(), deals.createdate) > ?', [DealWarning::CREATION_DATE->days()]);
+                $deals->whereRaw("julianday('now') - julianday(deals.createdate) > ?", [DealWarning::CREATION_DATE->days()]);
             }
             if ( in_array( 'AllWarnings', $_POST['warnings'] ) ) {
-                $deals->whereRaw('((DATEDIFF(NOW(), deals.hubspot_updatedAt) > ?) OR
-                                   (DATEDIFF(NOW(), deals.closedate) > ?) OR
-                                   (DATEDIFF(NOW(), deals.hs_date_entered) > ?) OR
-                                   (DATEDIFF(NOW(), deals.createdate) > ?)
-                                   )',
+                $deals->whereRaw("((julianday('now') - julianday(deals.hubspot_updatedAt) > ?) OR
+                                   (julianday('now') - julianday(deals.closedate) > ?) OR
+                                   (julianday('now') - julianday(deals.hs_date_entered) > ?) OR
+                                   (julianday('now') - julianday(deals.createdate) > ?)
+                                   )",
                                  [DealWarning::LAST_ACTIVITY->days(), 0, DealWarning::STAGE_TIME_SPEND->days(), DealWarning::CREATION_DATE->days()]);
             }
             //$deals=$deals_with_warnings[0];
