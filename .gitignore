@@ -9,6 +9,8 @@
 .env.stage
 .env.production
 .phpunit.result.cache
+*.sqlite
+*.sqlite-journal
 Homestead.json
 Homestead.yaml
 auth.json

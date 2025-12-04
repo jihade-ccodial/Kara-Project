@@ -38,9 +38,14 @@ class HubspotController extends Controller
             'crm.objects.deals.write',
         ];
 
+        $redirectUri = config('services.hubspot.redirect');
+        if (!$redirectUri) {
+            $redirectUri = url('/hubspot/callback');
+        }
+
         return Socialite::driver('hubspot')
             ->scopes($scopes)
-                        //->with($parameters)
+            ->with(['redirect_uri' => $redirectUri])
             ->redirect();
     }
 
