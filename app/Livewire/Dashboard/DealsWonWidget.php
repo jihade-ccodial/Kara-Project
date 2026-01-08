@@ -31,6 +31,7 @@ class DealsWonWidget extends Component
                 $team = [$team];
             }
         }
+
         // Ensure selected_team is always an array
         $this->selected_team = is_array($team) ? $team : [$team];
     }
@@ -62,14 +63,13 @@ class DealsWonWidget extends Component
         if (!$organization) {
             return Deal::whereRaw('1 = 0'); // Return empty query
         }
-        // Ensure selected_team is an array for whereIn
-        $teamIds = is_array($this->selected_team) ? $this->selected_team : (!empty($this->selected_team) ? [$this->selected_team] : [0]);
-
         $deals = Deal::whereHas('pipeline', function($q) use ($organization){
             $q->where('organization_id', '=', $organization->id);
             $q->where('active',1);
-        })->whereHas('member', function($q) use ($teamIds){
-            $q->whereHas('teams',  function($q2) use ($teamIds){
+        })->whereHas('member', function($q){
+            $q->whereHas('teams',  function($q2){
+                // Ensure selected_team is an array for whereIn
+                $teamIds = is_array($this->selected_team) ? $this->selected_team : (!empty($this->selected_team) ? [$this->selected_team] : [0]);
                 $q2->whereIn('teams.id', $teamIds);
             });
         })->whereHas('stage', function($q) {

@@ -38,6 +38,7 @@ class HubspotController extends Controller
             'crm.objects.deals.write',
         ];
 
+        // Get redirect URI from config or construct it from app URL
         $redirectUri = config('services.hubspot.redirect');
         if (!$redirectUri) {
             $redirectUri = url('/hubspot/callback');
@@ -153,7 +154,7 @@ class HubspotController extends Controller
 
             $organization = Auth::user()->organization();
             if (!$organization) {
-                return redirect()->route('home')->with('error', 'No organization found. Please ensure you are assigned to an organization.');
+                return redirect()->route('home')->with('error', 'No organization found');
             }
             $organization->synchronizing = true;
             $organization->save();
@@ -180,7 +181,7 @@ class HubspotController extends Controller
         } else {
             $organization = Auth::user()->organization();
             if (!$organization) {
-                return redirect()->route('home')->with('error', 'No organization found. Please ensure you are assigned to an organization.');
+                return redirect()->route('home')->with('error', 'No organization found');
             }
             if (! $organization->isSynchronizing() && (($organization->getDayFromLastSync() == null) || ($organization->getDayFromLastSync() > 1))) {
                 \App\Jobs\ImportHubspot::dispatch(Auth::user(), $organization->id);

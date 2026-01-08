@@ -243,10 +243,12 @@
             alert('Please select at least one member to add.');
             return;
         }
-
+        
         let form_data = new FormData();
-        // Append each member ID individually to send as an array
-        ids.forEach(id => form_data.append('members[]', id));
+        // Append each member ID individually so Laravel receives it as an array
+        ids.forEach(function(id) {
+            form_data.append('members[]', id);
+        });
         form_data.append('_method', 'PUT');
         submitAjaxForm(
             '{{ url('/') }}/client/team/'+teamid+'/members',

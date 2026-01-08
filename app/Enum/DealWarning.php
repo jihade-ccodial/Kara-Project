@@ -24,7 +24,7 @@ enum DealWarning : string {
     public function days(): int {
         $organization = Auth::user()->organization();
         if (!$organization) {
-            return 0; // Default value if organization is null
+            return 0; // Default to 0 if no organization
         }
         return match($this)
         {

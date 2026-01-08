@@ -25,7 +25,7 @@ class Dashboard extends Component
         if ($organization) {
             $this->teams = Team::where('organization_id', $organization->id)->pluck('name','id');
         } else {
-            $this->teams = []; // Default to empty if no organization
+            $this->teams = [];
         }
         return view('livewire.dashboard.dashboard');
     }

@@ -57,18 +57,14 @@
         <div class="row">
             <div class="col-6">
                 <div class="mb-4">
+                    <a type="button" class="el-button outlined-button orange" style=" padding: 8px 16px" href="{{ route('google.login') }}">
+                        <img src="{{asset('images/settings-icons\google.svg')}}" style="display: inline-block" alt="">
+                        {{ Auth::user()->google_token ? __('Re-sync with Google') : __('Sync with Google') }}
+                    </a>
                     @if(Auth::user()->google_name)
-                        <p>Synced with Google account - {{ Auth::user()->google_name }}</p>
-                        <a type="button" class="el-button outlined-button orange" style=" padding: 8px 16px" href="{{ route('google.login') }}">
-                            <img src="{{asset('images/settings-icons\google.svg')}}" style="display: inline-block" alt="">
-                            {{ __('Re-sync with Google') }}
-                        </a>
+                    <p>Synced with Google account - {{ Auth::user()->google_name }}</p>
                     @else
                         <p class="text-muted">Not connected. Click "Sync with Google" to connect your account.</p>
-                        <a type="button" class="el-button outlined-button orange" style=" padding: 8px 16px" href="{{ route('google.login') }}">
-                            <img src="{{asset('images/settings-icons\google.svg')}}" style="display: inline-block" alt="">
-                            {{ __('Sync with Google') }}
-                        </a>
                     @endif
                 </div>
             </div>

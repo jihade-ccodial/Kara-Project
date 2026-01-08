@@ -6,6 +6,9 @@ use App\Enum\DealWarning;
 use App\Helpers\Periods;
 use App\Http\Controllers\Controller;
 use App\Imports\HubspotDeals;
+use App\Imports\HubspotForecastCategories;
+use App\Imports\HubspotOwners;
+use App\Imports\HubspotPipelines;
 use App\Models\Deal;
 use App\Models\ForecastCategory;
 use App\Models\Stage;
@@ -60,13 +63,6 @@ class DealController extends Controller
 
     private function makeDatatable(?int $id){
         //ray()->showQueries();
-        $organization = Auth::user()->organization();
-        if (!$organization) {
-            return DataTables::of(collect([]))
-                         ->addIndexColumn()
-                         ->setRowId('id');
-        }
-        
 	    if ( isset($_POST['filters']) ) {
 			foreach ($_POST['filters'] as $filter){
 				if (trim($filter)){
@@ -75,6 +71,12 @@ class DealController extends Controller
 				}
 			}
 	    }
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            return DataTables::of(collect([]))
+                         ->addIndexColumn()
+                         ->setRowId('id');
+        }
         $deals = Deal::select('deals.*')
                      ->join('pipelines', 'deals.pipeline_id', '=', 'pipelines.id')
                             ->where('pipelines.organization_id', $organization->id)
@@ -235,11 +237,11 @@ class DealController extends Controller
     public function edit(Deal $deal)
     {
         if ($this->authorize('update', $deal)){
-            $stages = $deal->pipeline->stages()->orderBy('probability')->pluck('label')->toArray();
             $organization = Auth::user()->organization();
             if (!$organization) {
                 abort(404);
             }
+            $stages = $deal->pipeline->stages()->orderBy('probability')->pluck('label')->toArray();
             $forecast_categories = ForecastCategory::where('organization_id', $organization->id)->orderBy('display_order')->get();
             $index = array_search($deal->stage->label, $stages);
             return view( 'client.deal.edit' )->with( [
@@ -293,10 +295,13 @@ class DealController extends Controller
             $deal->update( $input );
         }
 
-        $data = $this->makeDatatable($deal->id)->make();
-        $data = $data->getData();
-        $data = $data->data[0];
-        $data = array( 'data' => array( $data ) );
+        $datatableResponse = $this->makeDatatable($deal->id)->make();
+        $data = $datatableResponse->getData();
+        if (isset($data->data) && count($data->data) > 0) {
+            $data = array( 'data' => array( $data->data[0] ) );
+        } else {
+            $data = array( 'data' => array() );
+        }
 
         die(json_encode($data));
         //$this->datatable();
@@ -335,29 +340,40 @@ class DealController extends Controller
                 ], 400);
             }
             
+            $hubspot = \App\Helpers\HubspotClientHelper::createFactory($user);
             $time_start = microtime(true);//seconds
             
-            $hubspot = \App\Helpers\HubspotClientHelper::createFactory($user);
-
-            // Check if pipelines exist for the organization
-            $pipelinesExist = \App\Models\Pipeline::where('organization_id', $organization->id)->exists();
-
-            if (!$pipelinesExist) {
-                \Log::info('No pipelines found for organization ' . $organization->id . '. Syncing pipelines first.');
-                \App\Imports\HubspotPipelines::sync_with_hubspot($hubspot, $user, $organization->id);
-                \Log::info('Pipelines synced successfully.');
+            // Check if pipelines exist - deals require pipelines to be synced first
+            $pipelinesCount = \App\Models\Pipeline::where('organization_id', $organization->id)->count();
+            $syncedItems = [];
+            
+            if ($pipelinesCount == 0) {
+                // Sync pipelines first (required for deals)
+                \Log::info('No pipelines found, syncing pipelines first', ['organization_id' => $organization->id]);
+                HubspotPipelines::sync_with_hubspot($hubspot, $user, $organization->id);
+                $syncedItems[] = 'pipelines';
+                
+                // Also sync forecast categories and owners (often needed)
+                HubspotForecastCategories::sync_with_hubspot($hubspot, $user, $organization->id);
+                HubspotOwners::sync_with_hubspot($hubspot, $user, $organization->id);
+                $syncedItems[] = 'forecast categories';
+                $syncedItems[] = 'owners';
             }
-
-            \App\Imports\HubspotForecastCategories::sync_with_hubspot($hubspot, $user, $organization->id);
-            \App\Imports\HubspotOwners::sync_with_hubspot($hubspot, $user, $organization->id);
+            
+            // Now sync deals
             HubspotDeals::sync_with_hubspot($hubspot, $user, $organization->id);
+            $syncedItems[] = 'deals';
             
             $time_end = microtime(true);//seconds
+            $duration = round($time_end - $time_start, 2);
+            
+            $message = 'Successfully synchronized: ' . implode(', ', $syncedItems) . ' (' . $duration . ' seconds)';
             
             return response()->json([
                 'success' => true,
-                'message' => 'Deals synchronized successfully',
-                'duration' => round($time_end - $time_start, 2) . ' seconds'
+                'message' => $message,
+                'duration' => $duration . ' seconds',
+                'synced_items' => $syncedItems
             ], 200);
             
         } catch (\HubSpot\Client\Crm\Deals\ApiException $e) {

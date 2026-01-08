@@ -264,29 +264,50 @@ class GoogleCalendars
      */
     protected static function identifyTeamMember(array $attendees, $user, string $userEmail): ?array
     {
-        $organization = $user->organization();
+        // Get organization - handle both session-based (web) and CLI contexts
+        $organization = null;
         
+        // Try session first (web context)
+        if (session()->has('organization')) {
+            $organization = session('organization');
+        } else {
+            // For CLI context or when session is not available, try user's organization() method
+            $organization = $user->organization();
+            
+            // If still null, try to get first organization from user's organizations
+            if (!$organization) {
+            $organization = $user->organizations()->first();
+            }
+        }
+
         if (!$organization) {
             \Log::warning('No organization found for user', [
                 'user_id' => $user->id,
                 'user_email' => $user->email,
+                'has_session' => session()->has('organization'),
+                'organizations_count' => $user->organizations()->count(),
             ]);
             return null;
         }
 
+        // Normalize user email for comparison
         $userEmail = strtolower(trim($userEmail));
 
         foreach ($attendees as $attendee) {
             $attendeeEmail = strtolower(trim($attendee->getEmail() ?? ''));
             
+            // Skip empty emails
             if (empty($attendeeEmail)) {
                 continue;
             }
             
+            // Skip the manager's own email
             if ($attendeeEmail === $userEmail || ($attendee->getSelf() ?? false)) {
                 continue;
             }
 
+            // Try to find matching member in organization
+            // Use case-insensitive email matching and trim whitespace
             $member = \App\Models\Member::where('organization_id', $organization->id)
                 ->whereRaw('LOWER(TRIM(email)) = ?', [$attendeeEmail])
                 ->where('active', true)
@@ -311,6 +332,7 @@ class GoogleCalendars
             }
         }
 
+        // If no member found, return first non-manager attendee info
         foreach ($attendees as $attendee) {
             $attendeeEmail = strtolower(trim($attendee->getEmail() ?? ''));
             

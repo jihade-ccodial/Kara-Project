@@ -33,18 +33,16 @@ class TodoController extends Controller
         
         // Wrap UNION query in a subquery to allow proper ordering without table aliases
         $unionQuery = $meeting_todos->union($old_todos);
-        
-        // Properly merge bindings: getBindings() returns all bindings from the union query
-        // Use mergeBindings() with the union query builder itself, not getQuery()
         $todos = DB::table(DB::raw("({$unionQuery->toSql()}) as todos"))
-                   ->mergeBindings($unionQuery);
+                   ->mergeBindings($unionQuery->getQuery());
         
         return DataTables::of($todos)
                          ->addIndexColumn() //DT_RowID
                          ->setRowId('id')
                          ->editColumn('due_date', function($row) {
                             if ($row->due_date) {
-                                return Carbon::parse($row->due_date)->toFormattedDateString();
+                                //$date = Carbon::parse($row->due_date);
+                                return $row->due_date->toFormattedDateString();
                             }else return '';
                          })
                          ->make();

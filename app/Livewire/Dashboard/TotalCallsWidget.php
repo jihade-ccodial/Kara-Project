@@ -32,8 +32,10 @@ class TotalCallsWidget extends Component
                 $team = [$team];
             }
         }
+
         // Ensure selected_team is always an array
         $this->selected_team = is_array($team) ? $team : [$team];
+        
         if ($this->member) {
             $this->selected_team = $this->member->teams()->pluck( 'teams.id' )->toArray();
         }
@@ -68,9 +70,6 @@ class TotalCallsWidget extends Component
             $this->count = 0;
             return view('livewire.dashboard.total-calls-widget');
         }
-        // Ensure selected_team is an array for whereIn
-        $teamIds = is_array($this->selected_team) ? $this->selected_team : (!empty($this->selected_team) ? [$this->selected_team] : [0]);
-
         $calls = Activity::where('type', GoalType::CALL)->where('hubspot_status', 'COMPLETED')->
                            whereHas('deal', function($q) use ($organization){
                                 $q->whereHas('pipeline', function($q2) use ($organization){
@@ -78,8 +77,10 @@ class TotalCallsWidget extends Component
                                     $q2->where('active',1);
                                 });
                            })->
-                           whereHas('member', function($q) use ($teamIds) {
-                                $q->whereHas( 'teams', function ( $q2 ) use ($teamIds) {
+                           whereHas('member', function($q) {
+                                $q->whereHas( 'teams', function ( $q2 ) {
+                                    // Ensure selected_team is an array for whereIn
+                                    $teamIds = is_array($this->selected_team) ? $this->selected_team : (!empty($this->selected_team) ? [$this->selected_team] : [0]);
                                     $q2->whereIn( 'teams.id', $teamIds );
                                 });
                            });

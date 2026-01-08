@@ -35,6 +35,7 @@
                 </div>
             </div>
         </div>
+        
         <div class="row">
             <div>
                 <div class="table-responsive">
@@ -82,7 +83,7 @@
             if (teamId) {
                 // Save as array for localStorage
                 let data = [teamId];
-                saveStateLocal('1to1-team-selection', data);
+            saveStateLocal('1to1-team-selection', data);
                 // Use the teamId directly (not the array) in the URL
                 $("#teamMembersTbl").DataTable().ajax.url('{{ url('/').'/client/1-1/team/'}}'+teamId+'/members/datatable').load();
             } else {

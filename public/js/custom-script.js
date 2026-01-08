@@ -287,27 +287,53 @@ function submitAjaxForm(url, form_data, onsuccess) {
         url: url,
         method: "POST",
         headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-        dataType: 'json', // Changed from 'text' to 'json'
+        dataType: 'json',
         data: form_data,
         processData: false,
         contentType: false,
         success: function(result){
             if (onsuccess) onsuccess(result);
         },
-        error: function(jqXHR, textStatus, errorThrown){
-            let errorMsg = 'AJAX Error: ' + jqXHR.responseText + ' ' + textStatus + ' ' + errorThrown;
-            if (jqXHR.responseJSON && jqXHR.responseJSON.message) {
-                errorMsg = 'AJAX Error: ' + jqXHR.responseJSON.message;
-                if (jqXHR.responseJSON.debug) {
-                    errorMsg += '\nDebug Info:\n' + JSON.stringify(jqXHR.responseJSON.debug, null, 2);
+        error: function(xhr, status, error){
+            console.error('AJAX Error:', xhr, status, error);
+            console.error('Response:', xhr.responseJSON || xhr.responseText);
+            
+            let errorMessage = 'An error occurred';
+            let debugInfo = '';
+            
+            // Try to parse JSON error response
+            if (xhr.responseJSON) {
+                errorMessage = xhr.responseJSON.message || xhr.responseJSON.error || errorMessage;
+                
+                // Handle validation errors
+                if (xhr.responseJSON.errors) {
+                    let validationErrors = [];
+                    $.each(xhr.responseJSON.errors, function(field, messages) {
+                        validationErrors.push(field + ': ' + messages.join(', '));
+                    });
+                    errorMessage = validationErrors.join('\n');
+                }
+                
+                // Include debug info if available
+                if (xhr.responseJSON.debug) {
+                    debugInfo = '\n\nDebug Info:\n' + JSON.stringify(xhr.responseJSON.debug, null, 2);
+                }
+            } else if (xhr.responseText) {
+                try {
+                    let parsed = JSON.parse(xhr.responseText);
+                    errorMessage = parsed.message || parsed.error || errorMessage;
+                    if (parsed.debug) {
+                        debugInfo = '\n\nDebug Info:\n' + JSON.stringify(parsed.debug, null, 2);
+                    }
+                } catch (e) {
+                    errorMessage = xhr.responseText || errorMessage;
                 }
             }
-            console.error(errorMsg, jqXHR);
-            alert(errorMsg); // Display error to the user
+            
+            // Show error to user
+            alert('Error: ' + errorMessage + debugInfo);
         },
-        complete: function(jqXHR, textStatus){
-            console.log('Response:', jqXHR.responseText); // Log the raw response
-        }
+        complete: function(jqXHR, textStatus){ }
     });
 }
 

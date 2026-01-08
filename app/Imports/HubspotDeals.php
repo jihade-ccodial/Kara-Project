@@ -31,7 +31,6 @@ class HubspotDeals
                     
                     // Skip if required properties are missing
                     if (empty($properties['pipeline']) || empty($properties['dealstage'])) {
-                        \Log::warning('Skipping deal due to missing pipeline or dealstage', ['deal_id' => $deal->getId(), 'properties' => $properties]);
                         continue;
                     }
                     
@@ -48,6 +47,8 @@ class HubspotDeals
                         ->first();
                     if ($pipeline) {
                         $associations = $deal->getAssociations();
+                        //if ( isset($associations['emails']) ) $emails= count($associations['emails']['results']); else $emails=0;
+                        //if ( isset($associations['meetings']) ) $meetings= count($associations['meetings']['results']); else $meetings=0;
                         
                         // Handle nullable date fields
                         $closedate = null;
@@ -55,7 +56,7 @@ class HubspotDeals
                             try {
                                 $closedate = Carbon::parse($properties['closedate'])->toDateTimeString();
                             } catch (\Exception $e) {
-                                \Log::warning('Failed to parse closedate', ['value' => $properties['closedate'], 'deal_id' => $deal->getId(), 'exception' => $e->getMessage()]);
+                                \Log::warning('Failed to parse closedate', ['value' => $properties['closedate'], 'deal_id' => $deal->getId()]);
                             }
                         }
                         
@@ -64,7 +65,7 @@ class HubspotDeals
                             try {
                                 $createdate = Carbon::parse($properties['createdate'])->toDateTimeString();
                             } catch (\Exception $e) {
-                                \Log::warning('Failed to parse createdate', ['value' => $properties['createdate'], 'deal_id' => $deal->getId(), 'exception' => $e->getMessage()]);
+                                \Log::warning('Failed to parse createdate', ['value' => $properties['createdate'], 'deal_id' => $deal->getId()]);
                             }
                         }
                         
@@ -74,65 +75,13 @@ class HubspotDeals
                             try {
                                 $hs_date_entered = Carbon::parse($properties[$dateEnteredKey])->toDateTimeString();
                             } catch (\Exception $e) {
-                                \Log::warning('Failed to parse hs_date_entered', ['key' => $dateEnteredKey, 'value' => $properties[$dateEnteredKey] ?? null, 'deal_id' => $deal->getId(), 'exception' => $e->getMessage()]);
+                                \Log::warning('Failed to parse hs_date_entered', ['key' => $dateEnteredKey, 'value' => $properties[$dateEnteredKey] ?? null, 'deal_id' => $deal->getId()]);
                             }
                         }
-
-                        // Safe fallback for hubspot_createdAt (NOT NULL column)
-                        $hubspotCreatedAt = null;
-                        try {
-                            $dealCreatedAt = $deal->getCreatedAt();
-                            if ($dealCreatedAt !== null) {
-                                $hubspotCreatedAt = Carbon::parse($dealCreatedAt)->toDateTimeString();
-                            }
-                        } catch (\Exception $e) {
-                            \Log::warning('Failed to parse deal->getCreatedAt()', ['deal_id' => $deal->getId(), 'error' => $e->getMessage()]);
-                        }
-
-                        // Safe fallback for hubspot_updatedAt (NOT NULL column)
-                        $hubspotUpdatedAt = null;
-                        try {
-                            $dealUpdatedAt = $deal->getUpdatedAt();
-                            if ($dealUpdatedAt !== null) {
-                                $hubspotUpdatedAt = Carbon::parse($dealUpdatedAt)->toDateTimeString();
-                            }
-                        } catch (\Exception $e) {
-                            \Log::warning('Failed to parse deal->getUpdatedAt()', ['deal_id' => $deal->getId(), 'error' => $e->getMessage()]);
-                        }
-
-                        // Fallback chain for hs_date_entered (required NOT NULL column)
-                        // Priority: hs_date_entered property > createdate property > deal->getCreatedAt() > current timestamp
+                        
+                        // Fallback to createdate if hs_date_entered is not available (required NOT NULL column)
                         if (!$hs_date_entered) {
-                            if ($createdate) {
-                                $hs_date_entered = $createdate;
-                            } elseif ($hubspotCreatedAt) {
-                                $hs_date_entered = $hubspotCreatedAt;
-                            } else {
-                                $hs_date_entered = Carbon::now()->toDateTimeString();
-                            }
-                        }
-
-                        // Fallback for createdate (required NOT NULL column)
-                        if (!$createdate) {
-                            if ($hubspotCreatedAt) {
-                                $createdate = $hubspotCreatedAt;
-                            } else {
-                                $createdate = Carbon::now()->toDateTimeString();
-                            }
-                        }
-
-                        // Fallback for hubspot_createdAt (required NOT NULL column)
-                        if (!$hubspotCreatedAt) {
-                            if ($createdate) {
-                                $hubspotCreatedAt = $createdate;
-                            } else {
-                                $hubspotCreatedAt = Carbon::now()->toDateTimeString();
-                            }
-                        }
-
-                        // Fallback for hubspot_updatedAt (required NOT NULL column)
-                        if (!$hubspotUpdatedAt) {
-                            $hubspotUpdatedAt = $hubspotCreatedAt ?: Carbon::now()->toDateTimeString();
+                            $hs_date_entered = $createdate ?: Carbon::parse($deal->getCreatedAt())->toDateTimeString();
                         }
                         
                         $deal_db_record = Deal::updateOrCreate(
@@ -142,8 +91,8 @@ class HubspotDeals
                                 'amount' => $properties['amount'] ?? 0,
                                 'closedate' => $closedate,
                                 'createdate' => $createdate,
-                                'hubspot_createdAt' => $hubspotCreatedAt,
-                                'hubspot_updatedAt' => $hubspotUpdatedAt,
+                                'hubspot_createdAt' => Carbon::parse($deal->getCreatedAt())->toDateTimeString(),
+                                'hubspot_updatedAt' => Carbon::parse($deal->getUpdatedAt())->toDateTimeString(),
                                 'hubspot_pipeline_id' => $properties['pipeline'],
                                 'hubspot_stage_id' => $properties['dealstage'],
                                 'hubspot_owner_id' => $properties['hubspot_owner_id'] ?? null,
@@ -186,13 +135,13 @@ class HubspotDeals
                 'code' => $e->getCode(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw $e; // Re-throw to be caught by the controller
+            throw $e; // Re-throw so controller can handle it
         } catch (\Exception $e) {
             \Log::error('General Exception in sync_with_hubspot', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw $e; // Re-throw to be caught by the controller
+            throw $e; // Re-throw so controller can handle it
         }
     }
 

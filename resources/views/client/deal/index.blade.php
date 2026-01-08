@@ -68,25 +68,20 @@
                               dataType: 'json',
                               success: function(response) {
                                   if (response.success) {
-                                      alert(response.message + (response.duration ? ' (' + response.duration + ')' : ''));
+                                      alert('✅ ' + response.message + (response.duration ? ' (' + response.duration + ')' : ''));
                                       $("#dealsTbl").DataTable().ajax.reload();
                                   } else {
-                                      alert('Error: ' + (response.message || 'Unknown error'));
+                                      alert('❌ Error: ' + (response.message || response.error || 'Unknown error'));
                                   }
                               },
                               error: function(xhr) {
                                   let errorMsg = 'Failed to sync deals';
                                   if (xhr.responseJSON && xhr.responseJSON.message) {
                                       errorMsg = xhr.responseJSON.message;
-                                  } else if (xhr.responseText) {
-                                      try {
-                                          let error = JSON.parse(xhr.responseText);
-                                          errorMsg = error.message || errorMsg;
-                                      } catch(e) {
-                                          errorMsg = xhr.responseText;
-                                      }
+                                  } else if (xhr.responseJSON && xhr.responseJSON.error) {
+                                      errorMsg = xhr.responseJSON.error;
                                   }
-                                  alert('Error: ' + errorMsg);
+                                  alert('❌ Error: ' + errorMsg);
                               }
                           });
                       }

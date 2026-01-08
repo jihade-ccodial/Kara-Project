@@ -47,11 +47,9 @@ class MemberController extends Controller
         $members = $members->join('member_team', 'members.id','=', 'member_team.member_id')->whereIn('team_id',$teams);
         $members = $members->get();
         foreach ($members as $member){
-            $ret[] = array(
-                'id' => $member->id,
-                'name' => $member->firstName.' '.$member->lastName
-            );
+            $ret[$member->id] = $member->lastName.' '.$member->firstName;
         }
+
         die(json_encode($ret));
     }
 

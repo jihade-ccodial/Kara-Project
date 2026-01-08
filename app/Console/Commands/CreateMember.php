@@ -8,52 +8,100 @@ use Illuminate\Console\Command;
 
 class CreateMember extends Command
 {
-    protected $signature = 'member:create {organization_id} {email} {firstName} {lastName} {--active=1}';
-    protected $description = 'Create a new member and assign to an organization.';
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'member:create 
+                            {organization : Organization ID, name, or hubspot_portalId}
+                            {email : Member email address}
+                            {firstName : Member first name}
+                            {lastName : Member last name}
+                            {--hubspot_id= : HubSpot ID (optional)}';
 
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Create a member in an organization';
+
+    /**
+     * Execute the console command.
+     */
     public function handle()
     {
-        $organizationId = $this->argument('organization_id');
+        $orgIdentifier = $this->argument('organization');
         $email = $this->argument('email');
         $firstName = $this->argument('firstName');
         $lastName = $this->argument('lastName');
-        $active = (bool) $this->option('active');
+        $hubspotId = $this->option('hubspot_id') ?? 'manual_' . time();
 
-        $organization = Organization::find($organizationId);
+        // Find organization
+        $organization = null;
+        if (is_numeric($orgIdentifier)) {
+            $organization = Organization::find($orgIdentifier);
+        } else {
+            // Try by name first
+            $organization = Organization::where('name', $orgIdentifier)->first();
+            
+            // If not found, try by hubspot_portalId
+            if (!$organization) {
+                $organization = Organization::where('hubspot_portalId', $orgIdentifier)->first();
+            }
+        }
 
         if (!$organization) {
-            $this->error("Organization with ID {$organizationId} not found.");
+            $this->error("Organization not found: {$orgIdentifier}");
+            $this->info("Available organizations:");
+            Organization::all(['id', 'name', 'hubspot_portalId'])->each(function ($org) {
+                $this->line("  ID: {$org->id}, Name: {$org->name}, Portal ID: {$org->hubspot_portalId}");
+            });
             return 1;
         }
 
-        // Check if member already exists for this organization
+        // Check if member already exists
         $existingMember = Member::where('organization_id', $organization->id)
-                                ->where('email', $email)
-                                ->first();
+            ->whereRaw('LOWER(TRIM(email)) = ?', [strtolower(trim($email))])
+            ->first();
 
         if ($existingMember) {
-            $this->warn("Member with email {$email} already exists in organization {$organization->name}. Updating existing member.");
-            $member = $existingMember;
-        } else {
-            $member = new Member();
+            $this->warn("Member with email '{$email}' already exists in organization '{$organization->name}' (ID: {$existingMember->id})");
+            $this->info("Updating existing member...");
+            
+            $existingMember->update([
+                'firstName' => $firstName,
+                'lastName' => $lastName,
+                'active' => true,
+            ]);
+            
+            if ($this->option('hubspot_id')) {
+                $existingMember->update(['hubspot_id' => $hubspotId]);
+            }
+            
+            $this->info("✓ Member updated successfully!");
+            return 0;
         }
 
-        $member->organization_id = $organization->id;
-        $member->email = $email;
-        $member->firstName = $firstName;
-        $member->lastName = $lastName;
-        $member->active = $active;
-        // Set dummy hubspot_id and dates if not provided, or make them nullable in migration
-        $member->hubspot_id = $member->hubspot_id ?? 'manual_' . uniqid();
-        $member->hubspot_createdAt = $member->hubspot_createdAt ?? now();
-        $member->hubspot_updatedAt = $member->hubspot_updatedAt ?? now();
-        $member->save();
+        // Create new member
+        $member = Member::create([
+            'organization_id' => $organization->id,
+            'hubspot_id' => $hubspotId,
+            'email' => $email,
+            'firstName' => $firstName,
+            'lastName' => $lastName,
+            'active' => true,
+            'hubspot_archived' => false,
+            'hubspot_createdAt' => now(),
+            'hubspot_updatedAt' => now(),
+        ]);
 
         $this->info("✓ Successfully created member:");
-        $this->info("  ID: {$member->id}");
-        $this->info("  Name: {$member->firstName} {$member->lastName}");
-        $this->info("  Email: {$member->email}");
-        $this->info("  Organization: {$organization->name} (ID: {$organization->id})");
+        $this->line("  ID: {$member->id}");
+        $this->line("  Name: {$member->firstName} {$member->lastName}");
+        $this->line("  Email: {$member->email}");
+        $this->line("  Organization: {$organization->name} (ID: {$organization->id})");
 
         return 0;
     }

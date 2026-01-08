@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Team;
 use Auth;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Session;
 
 class TeamController extends Controller
 {
@@ -51,11 +52,11 @@ class TeamController extends Controller
     public function store(Request $request)
     {
         try {
-            $validated = $request->validate([
-                'name' => 'required|max:255',
-            ]);
+        $validated = $request->validate([
+            'name' => 'required|max:255',
+        ]);
 
-            $input = $request->all();
+        $input = $request->all();
 
             $user = Auth::user();
             $organization = $user->organization();
@@ -81,10 +82,13 @@ class TeamController extends Controller
                         ]
                     ], 400);
                 }
+                
+                // Cache the organization in session for future requests
+                Session::put('organization', $organization);
             }
             
             $team = Team::create([
-                'name' => $input['name'],
+            'name' => $input['name'],
                 'organization_id' => $organization->id
             ]);
 
@@ -104,8 +108,9 @@ class TeamController extends Controller
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'An unexpected error occurred',
-                'message' => $e->getMessage()
+                'error' => 'An error occurred',
+                'message' => $e->getMessage(),
+                'trace' => config('app.debug') ? $e->getTraceAsString() : null
             ], 500);
         }
     }
@@ -143,56 +148,46 @@ class TeamController extends Controller
      */
     public function update(Request $request, Team $team)
     {
-        try {
-            $validated = $request->validate([
-                'name' => 'required|max:255',
-            ]);
+        $validated = $request->validate([
+            'name' => 'required|max:255',
+        ]);
 
-            $input = $request->all();
+        $input = $request->all();
 
-            $team->update($input);
+        $team->update($input);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Team updated successfully',
-                'team' => [
-                    'id' => $team->id,
-                    'name' => $team->name,
-                ]
-            ], 200);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'error' => 'Validation failed',
-                'message' => $e->getMessage(),
-                'errors' => $e->errors()
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'An unexpected error occurred',
-                'message' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'message' => 'Team updated successfully',
+            'team' => [
+                'id' => $team->id,
+                'name' => $team->name,
+            ]
+        ], 200);
     }
 
     public function add_members(Request $request, Team $team)
     {
         try {
-            $input = $request->all();
+        $input = $request->all();
 
             if (isset($input['members'])) {
                 // Handle both array and comma-separated string
                 if (is_array($input['members'])) {
                     $members = $input['members'];
                 } else {
-                    $members = explode(',', $input['members']);
+            $members = explode(',', $input['members']);
                 }
                 
-                // Filter out empty values and convert to integers
-                $members = array_filter(array_map('trim', $members));
-                $members = array_map('intval', $members);
+                // Convert all values to integers and filter out empty/invalid values
+                $members = array_filter(array_map(function($id) {
+                    return (int) trim($id);
+                }, $members), function($id) {
+                    return $id > 0;
+                });
                 
                 if (!empty($members)) {
-                    $team->members()->withTimestamps()->syncWithoutDetaching($members);
+            $team->members()->withTimestamps()->syncWithoutDetaching($members);
                     
                     return response()->json([
                         'success' => true,
@@ -229,7 +224,7 @@ class TeamController extends Controller
     {
         try {
             $teamName = $team->name;
-            $team->delete();
+        $team->delete();
             
             return response()->json([
                 'success' => true,
@@ -246,7 +241,7 @@ class TeamController extends Controller
     public function delete_member(Request $request, Team $team)
     {
         try {
-            $input = $request->all();
+        $input = $request->all();
 
             if (isset($input['member'])) {
                 $memberId = $input['member'];

@@ -32,8 +32,10 @@ class AverageBasketWidget extends Component
                 $team = [$team];
             }
         }
+
         // Ensure selected_team is always an array
         $this->selected_team = is_array($team) ? $team : [$team];
+        
         if ($this->member) {
             $this->selected_team = $this->member->teams()->pluck( 'teams.id' )->toArray();
         }
@@ -65,18 +67,16 @@ class AverageBasketWidget extends Component
     {
         $organization = Auth::user()->organization();
         if (!$organization) {
-            $this->amount = 0;
-            $this->count = 0;
+            $this->amount = currency_format(0, Auth::user()->currency());
             return view('livewire.dashboard.average-basket-widget');
         }
-        // Ensure selected_team is an array for whereIn
-        $teamIds = is_array($this->selected_team) ? $this->selected_team : (!empty($this->selected_team) ? [$this->selected_team] : [0]);
-
         $deals = Deal::whereHas('pipeline', function($q) use ($organization){
             $q->where('organization_id', '=', $organization->id);
             $q->where('active',1);
-        })->whereHas('member', function($q) use ($teamIds){
-            $q->whereHas('teams',  function($q2) use ($teamIds){
+        })->whereHas('member', function($q){
+            $q->whereHas('teams',  function($q2){
+                // Ensure selected_team is an array for whereIn
+                $teamIds = is_array($this->selected_team) ? $this->selected_team : (!empty($this->selected_team) ? [$this->selected_team] : [0]);
                 $q2->whereIn('teams.id', $teamIds);
             });
         })->whereHas('stage', function($q) {
@@ -91,8 +91,10 @@ class AverageBasketWidget extends Component
             $deals->whereBetween('closedate', [$this->startdate, $this->enddate]);
         $currency = Auth::user()->currency();
 
-        $members = Member::distinct()->whereHas('teams',  function($q) use ($organization, $teamIds){
+        $members = Member::distinct()->whereHas('teams',  function($q) use ($organization){
                         $q->where('organization_id', '=', $organization->id);
+                        // Ensure selected_team is an array for whereIn
+                        $teamIds = is_array($this->selected_team) ? $this->selected_team : (!empty($this->selected_team) ? [$this->selected_team] : [0]);
                         $q->whereIn('teams.id', $teamIds);
                     })->whereHas('deals',  function($q){
                         $q->whereHas('pipeline',  function($q2){

@@ -15,9 +15,9 @@
                             $organization = Auth::user()->organization();
                         @endphp
                         @if($organization)
-                        <a href="{{ $organization->getHubspotURL() . '/deal/' . $deal->hubspot_id  }}" target="_blank">{{ $deal->name }}</a>
+                            <a href="{{ $organization->getHubspotURL() . '/deal/' . $deal->hubspot_id  }}" target="_blank">{{ $deal->name }}</a>
                         @else
-                        {{ $deal->name }}
+                            <span>{{ $deal->name }}</span>
                         @endif
                     </h6>
                     <p class="deal-card-details">in pipeline {{ $deal->pipeline->label }}</p>

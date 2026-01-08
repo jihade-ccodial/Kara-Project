@@ -27,6 +27,7 @@ class ThumbnailWidget extends Component
                 $team = [$team];
             }
         }
+
         // Ensure selected_team is always an array
         $this->selected_team = is_array($team) ? $team : [$team];
     }

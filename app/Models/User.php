@@ -140,28 +140,32 @@ class User extends Authenticatable
 
     public function organization()
     {
+        //return $this->belongsTo('App\Models\Organization');
         $hubspot_portalId = session('hubspot_portalId');
-        if (!Session::has('organization')) {
-            $organization = $this->organizations()->where('hubspot_portalId', $hubspot_portalId)->first();
-            Session::put('organization', $organization);
-        }
+        //if ($hubspot_portalId) return $this->organizations()->where('hubspot_portalId', $hubspot_portalId);
+        //else return null
+        //return Cache::remember('organization', 86400, function () use($hubspot_portalId) {
+            //return $this->organizations()->where( 'hubspot_portalId', $hubspot_portalId )->first();
+        //});
+        if( !Session::has('organization') )
+            Session::put('organization', $this->organizations()->where( 'hubspot_portalId', $hubspot_portalId )->first());
         return Session::get('organization');
     }
 
     public function currency(){
         $organization = $this->organization();
-        if ($organization && !Session::has('user_currency')) {
+        if( !Session::has('user_currency') && $organization )
             Session::put('user_currency', $organization->currency);
-        }
         return Session::get('user_currency', 'USD'); // Default to USD if no organization
+        //return $this->organization()->first()->currency;
     }
 
     public function member(){
-        $organization = $this->organization();
-        if (!$organization) {
-            return Member::whereRaw('1 = 0'); // Return empty query if no organization
-        }
-        return Member::where('email', $this->email)->where('organization_id', $organization->id);
+         $organization = $this->organization();
+         if (!$organization) {
+             return Member::whereRaw('1 = 0'); // Return empty query if no organization
+         }
+         return Member::where('email', $this->email)->where('organization_id', $organization->id);
     }
 
 

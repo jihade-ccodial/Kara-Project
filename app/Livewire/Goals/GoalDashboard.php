@@ -25,6 +25,7 @@ class GoalDashboard extends Component
                 $team = [$team];
             }
         }
+
         // Ensure selected_team is always an array
         $this->selected_team = is_array($team) ? $team : [$team];
     }
@@ -37,13 +38,14 @@ class GoalDashboard extends Component
 
     public function render()
     {
-        // Ensure selected_team is an array for whereIn
-        $teamIds = is_array($this->selected_team) ? $this->selected_team : (!empty($this->selected_team) ? [$this->selected_team] : [0]);
-
         if($this->member) {
             $this->selected_team = $this->member->teams()->pluck( 'teams.id' )->toArray();
+            // Ensure selected_team is an array for whereIn
+            $teamIds = is_array($this->selected_team) ? $this->selected_team : (!empty($this->selected_team) ? [$this->selected_team] : [0]);
             $goals = Goal::whereIn('team_id', $teamIds)->where('member_id', $this->member->id)->get();
         } else {
+            // Ensure selected_team is an array for whereIn
+            $teamIds = is_array($this->selected_team) ? $this->selected_team : (!empty($this->selected_team) ? [$this->selected_team] : [0]);
             $goals = Goal::whereIn('team_id', $teamIds)->where('member_id', null)->get();
         }
 
