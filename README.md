@@ -14,6 +14,12 @@ Installation Steps:
 - mkdir storage/app/public/avatars
 - php artisan config:cache
 
+## Requirements
+
+- PHP >= 8.2
+- Laravel >= 12.0
+- Livewire >= 3.5
+
 ## SSL
 
 SSL is required for hubspot login.
