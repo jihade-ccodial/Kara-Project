@@ -26,7 +26,12 @@ class GoalsManage extends Component
     public $new_goal_id=null;
 
     public function mount(){
-        $this->teams = Team::where('organization_id', Auth::user()->organization()->id)->pluck('name','id');
+        $organization = Auth::user()->organization();
+        if ($organization) {
+            $this->teams = Team::where('organization_id', $organization->id)->pluck('name','id');
+        } else {
+            $this->teams = [];
+        }
     }
 
     #[On('teams-select-change')]

@@ -20,7 +20,12 @@ class OneToOneController extends Controller
      */
     public function index()
     {
-        $teams = Team::where('organization_id', Auth::user()->organization()->id)->pluck('name','id');
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            $teams = [];
+        } else {
+            $teams = Team::where('organization_id', $organization->id)->pluck('name','id');
+        }
         return view('client.onotoone.index')->with([
             'teams'=> $teams
         ]);;

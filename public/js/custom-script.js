@@ -287,17 +287,27 @@ function submitAjaxForm(url, form_data, onsuccess) {
         url: url,
         method: "POST",
         headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-        dataType: 'text',
+        dataType: 'json', // Changed from 'text' to 'json'
         data: form_data,
         processData: false,
         contentType: false,
         success: function(result){
             if (onsuccess) onsuccess(result);
         },
-        error: function(er){
-            console.log(er);
+        error: function(jqXHR, textStatus, errorThrown){
+            let errorMsg = 'AJAX Error: ' + jqXHR.responseText + ' ' + textStatus + ' ' + errorThrown;
+            if (jqXHR.responseJSON && jqXHR.responseJSON.message) {
+                errorMsg = 'AJAX Error: ' + jqXHR.responseJSON.message;
+                if (jqXHR.responseJSON.debug) {
+                    errorMsg += '\nDebug Info:\n' + JSON.stringify(jqXHR.responseJSON.debug, null, 2);
+                }
+            }
+            console.error(errorMsg, jqXHR);
+            alert(errorMsg); // Display error to the user
         },
-        complete: function(jqXHR, textStatus){ }
+        complete: function(jqXHR, textStatus){
+            console.log('Response:', jqXHR.responseText); // Log the raw response
+        }
     });
 }
 

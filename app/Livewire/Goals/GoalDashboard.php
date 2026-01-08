@@ -16,9 +16,17 @@ class GoalDashboard extends Component
 
     #[On('teams-select-change')]
     public function teamSelection($team){
-        if (!is_array($team)) $team=[$team];
-        else if(isset($team['values'])) $team = $team['values'];
-        $this->selected_team = $team;
+        if (!is_array($team)) {
+            $team = [$team];
+        } else if(isset($team['values'])) {
+            $team = $team['values'];
+            // Ensure it's an array even if values is a string
+            if (!is_array($team)) {
+                $team = [$team];
+            }
+        }
+        // Ensure selected_team is always an array
+        $this->selected_team = is_array($team) ? $team : [$team];
     }
 
     #[On('refresh-dashboard')]
@@ -29,11 +37,14 @@ class GoalDashboard extends Component
 
     public function render()
     {
+        // Ensure selected_team is an array for whereIn
+        $teamIds = is_array($this->selected_team) ? $this->selected_team : (!empty($this->selected_team) ? [$this->selected_team] : [0]);
+
         if($this->member) {
             $this->selected_team = $this->member->teams()->pluck( 'teams.id' )->toArray();
-            $goals = Goal::whereIn('team_id', $this->selected_team)->where('member_id', $this->member->id)->get();
+            $goals = Goal::whereIn('team_id', $teamIds)->where('member_id', $this->member->id)->get();
         } else {
-            $goals = Goal::whereIn('team_id', $this->selected_team??[0])->where('member_id', null)->get();
+            $goals = Goal::whereIn('team_id', $teamIds)->where('member_id', null)->get();
         }
 
         return view('livewire.goals.goal-dashboard')->with([

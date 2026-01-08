@@ -23,9 +23,17 @@ class TotalTasksWidget extends Component
 
     #[On('teams-select-change')]
     public function teamSelection($team){
-        if (!is_array($team)) $team=[$team];
-        else if(isset($team['values'])) $team = $team['values'];
-        $this->selected_team = $team;
+        if (!is_array($team)) {
+            $team = [$team];
+        } else if(isset($team['values'])) {
+            $team = $team['values'];
+            // Ensure it's an array even if values is a string
+            if (!is_array($team)) {
+                $team = [$team];
+            }
+        }
+        // Ensure selected_team is always an array
+        $this->selected_team = is_array($team) ? $team : [$team];
         if ($this->member) {
             $this->selected_team = $this->member->teams()->pluck( 'teams.id' )->toArray();
         }
@@ -56,16 +64,24 @@ class TotalTasksWidget extends Component
     public function render()
     {
         //ray()->showQueries();
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            $this->count = 0;
+            return view('livewire.dashboard.total-tasks-widget');
+        }
+        // Ensure selected_team is an array for whereIn
+        $teamIds = is_array($this->selected_team) ? $this->selected_team : (!empty($this->selected_team) ? [$this->selected_team] : [0]);
+
         $tasks = Activity::where('type', GoalType::TASK)->where('hubspot_status', 'COMPLETED')->
-                           whereHas('deal', function($q){
-                                $q->whereHas('pipeline', function($q2){
-                                    $q2->where('organization_id', '=', Auth::user()->organization()->id);
+                           whereHas('deal', function($q) use ($organization){
+                                $q->whereHas('pipeline', function($q2) use ($organization){
+                                    $q2->where('organization_id', '=', $organization->id);
                                     $q2->where('active',1);
                                 });
                            })->
-                           whereHas('member', function($q) {
-                                $q->whereHas( 'teams', function ( $q2 ) {
-                                    $q2->whereIn( 'teams.id', $this->selected_team??[0] );
+                           whereHas('member', function($q) use ($teamIds) {
+                                $q->whereHas( 'teams', function ( $q2 ) use ($teamIds) {
+                                    $q2->whereIn( 'teams.id', $teamIds );
                                 });
                            });
 

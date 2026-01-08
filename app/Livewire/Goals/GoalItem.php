@@ -27,18 +27,25 @@ class GoalItem extends Component
 
     public function render()
     {
-        $pipelines = Pipeline::where('organization_id', Auth::user()->organization()->id)->where('active', '1')->get();
-        $stages = collect();
-        if ($this->goal->pipeline_id) $stages = Stage::where('pipeline_id', $this->goal->pipeline_id)->get();
-        $team_members=[];
-        if ($this->goal->team_id) {
-            $members = Member::select('members.*')
-                             ->where('organization_id', Auth::user()->organization()->id)
-                             ->where('active', 1)
-                             ->join('member_team', 'members.id','=', 'member_team.member_id')->where('team_id',$this->goal->team_id );
-            $members = $members->get();
-            foreach ($members as $member){
-                $team_members[$member->id] = $member->lastName.' '.$member->firstName;
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            $pipelines = collect([]);
+            $stages = collect([]);
+            $team_members = [];
+        } else {
+            $pipelines = Pipeline::where('organization_id', $organization->id)->where('active', '1')->get();
+            $stages = collect();
+            if ($this->goal->pipeline_id) $stages = Stage::where('pipeline_id', $this->goal->pipeline_id)->get();
+            $team_members=[];
+            if ($this->goal->team_id) {
+                $members = Member::select('members.*')
+                                 ->where('organization_id', $organization->id)
+                                 ->where('active', 1)
+                                 ->join('member_team', 'members.id','=', 'member_team.member_id')->where('team_id',$this->goal->team_id );
+                $members = $members->get();
+                foreach ($members as $member){
+                    $team_members[$member->id] = $member->lastName.' '.$member->firstName;
+                }
             }
         }
 

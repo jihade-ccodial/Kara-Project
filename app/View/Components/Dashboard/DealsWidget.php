@@ -33,7 +33,12 @@ class DealsWidget extends Component
      */
     public function render()
     {
-        $pipelines = Pipeline::where('active',1)->where('organization_id', Auth::user()->organization()->id)->pluck('label', 'id');
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            $pipelines = collect([]);
+        } else {
+            $pipelines = Pipeline::where('active',1)->where('organization_id', $organization->id)->pluck('label', 'id');
+        }
         //$members = Member::where('active','1')->whereHas('teams', function($q){
         //    $q->whereIn('teams.id', array_keys($this->teams->toArray()));
         //})->pluck('lastName', 'id');

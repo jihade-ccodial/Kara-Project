@@ -28,6 +28,7 @@ class HubspotPipelines
                         'label' => $pipeline->getLabel(),
                         'hubspot_createdAt' => Carbon::parse($pipeline->getCreatedAt())->toDateTimeString(),
                         'hubspot_updatedAt' => Carbon::parse($pipeline->getUpdatedAt())->toDateTimeString(),
+                        'active' => true, // Pipelines synced from HubSpot should be active
                     ]
                 );
                 $pipelines_ids[] = $pipeline_db_record->id;

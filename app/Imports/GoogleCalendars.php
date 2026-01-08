@@ -264,37 +264,45 @@ class GoogleCalendars
      */
     protected static function identifyTeamMember(array $attendees, $user, string $userEmail): ?array
     {
-        // Get organization - handle both session-based (web) and direct (command) contexts
-        $organization = null;
-        if (session()->has('organization')) {
-            $organization = session('organization');
-        } else {
-            // For command context, get first organization
-            $organization = $user->organizations()->first();
-        }
-
+        $organization = $user->organization();
+        
         if (!$organization) {
+            \Log::warning('No organization found for user', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+            ]);
             return null;
         }
 
+        $userEmail = strtolower(trim($userEmail));
+
         foreach ($attendees as $attendee) {
-            $attendeeEmail = strtolower($attendee->getEmail() ?? '');
+            $attendeeEmail = strtolower(trim($attendee->getEmail() ?? ''));
             
-            // Skip the manager's own email
+            if (empty($attendeeEmail)) {
+                continue;
+            }
+            
             if ($attendeeEmail === $userEmail || ($attendee->getSelf() ?? false)) {
                 continue;
             }
 
-            // Try to find matching member in organization
             $member = \App\Models\Member::where('organization_id', $organization->id)
-                ->where('email', $attendeeEmail)
+                ->whereRaw('LOWER(TRIM(email)) = ?', [$attendeeEmail])
                 ->where('active', true)
                 ->first();
 
             if ($member) {
+                \Log::info('Team member matched from Google Calendar attendee', [
+                    'member_id' => $member->id,
+                    'member_email' => $member->email,
+                    'attendee_email' => $attendeeEmail,
+                    'organization_id' => $organization->id,
+                ]);
+                
                 return [
                     'id' => $member->id,
-                    'name' => $member->full_name,
+                    'name' => $member->full_name ?? ($member->firstName . ' ' . $member->lastName),
                     'first_name' => $member->firstName,
                     'last_name' => $member->lastName,
                     'email' => $member->email,
@@ -303,10 +311,20 @@ class GoogleCalendars
             }
         }
 
-        // If no member found, return first non-manager attendee info
         foreach ($attendees as $attendee) {
-            $attendeeEmail = strtolower($attendee->getEmail() ?? '');
+            $attendeeEmail = strtolower(trim($attendee->getEmail() ?? ''));
+            
+            if (empty($attendeeEmail)) {
+                continue;
+            }
+            
             if ($attendeeEmail !== $userEmail && !($attendee->getSelf() ?? false)) {
+                \Log::warning('Attendee not found in team members', [
+                    'attendee_email' => $attendeeEmail,
+                    'organization_id' => $organization->id,
+                    'attendee_display_name' => $attendee->getDisplayName(),
+                ]);
+                
                 return [
                     'id' => null,
                     'name' => $attendee->getDisplayName() ?? $attendeeEmail,

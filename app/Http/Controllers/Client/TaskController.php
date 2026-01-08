@@ -30,12 +30,16 @@ class TaskController extends Controller
      */
     public function create(Request $request)
     {
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            abort(404);
+        }
         $deals = Deal::select('deals.*')
                        ->join('pipelines', 'deals.pipeline_id', '=', 'pipelines.id')
-                       ->where('pipelines.organization_id', Auth::user()->organization()->id)
+                       ->where('pipelines.organization_id', $organization->id)
                        ->where('pipelines.active', 1)
                        ->pluck('name', 'id');
-        $members = Member::where('organization_id',Auth::user()->organization()->id )
+        $members = Member::where('organization_id', $organization->id )
                          ->where('active',1)
                          ->get()
                          ->pluck('full_name', 'id');
@@ -97,7 +101,11 @@ class TaskController extends Controller
 
         $deal = Deal::find($input['deal_id']);
         $hubspot_deal_id = $deal->hubspot_id;
-        $task = HubspotTasks::createTask(null, Auth::user(), Auth::user()->organization()->id, $hubspot_deal_id, $properties);
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            abort(400, 'No organization found');
+        }
+        $task = HubspotTasks::createTask(null, Auth::user(), $organization->id, $hubspot_deal_id, $properties);
 
         die(0);
     }
@@ -121,12 +129,16 @@ class TaskController extends Controller
      */
     public function edit(Activity $task)
     {
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            abort(404);
+        }
         $deals = Deal::select('deals.*')
                      ->join('pipelines', 'deals.pipeline_id', '=', 'pipelines.id')
-                     ->where('pipelines.organization_id', Auth::user()->organization()->id)
+                     ->where('pipelines.organization_id', $organization->id)
                      ->where('pipelines.active', 1)
                      ->pluck('name', 'id');
-        $members = Member::where('organization_id',Auth::user()->organization()->id )
+        $members = Member::where('organization_id', $organization->id )
                          ->where('active',1)
                          ->get()
                          ->pluck('full_name', 'id');

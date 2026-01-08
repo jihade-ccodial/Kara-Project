@@ -75,9 +75,20 @@
             dropdownCssClass: 'select-team-dropdown'
         })
         .on('change', function (e) {
-            let data = new Array($("#teams-select").select2("val"));
-            saveStateLocal('1to1-team-selection', data);
-            $("#teamMembersTbl").DataTable().ajax.url('{{ url('/').'/client/1-1/team/'}}'+data+'/members/datatable').load();
+            let selectedValue = $("#teams-select").select2("val");
+            // Extract the actual value - select2("val") returns a string for single select
+            let teamId = selectedValue || null;
+            
+            if (teamId) {
+                // Save as array for localStorage
+                let data = [teamId];
+                saveStateLocal('1to1-team-selection', data);
+                // Use the teamId directly (not the array) in the URL
+                $("#teamMembersTbl").DataTable().ajax.url('{{ url('/').'/client/1-1/team/'}}'+teamId+'/members/datatable').load();
+            } else {
+                // If no team selected, clear the table or show empty state
+                $("#teamMembersTbl").DataTable().ajax.url('{{ url('/').'/client/1-1/team/0/members/datatable'}}').load();
+            }
         });
 
         $('.team-select>.select2-container').addClass('select-team');
@@ -253,8 +264,14 @@
         });
 
         $(function() {
-            if (getStateLocal('1to1-team-selection'))
-                team_select.val(getStateLocal('1to1-team-selection')).trigger('change');
+            let savedTeam = getStateLocal('1to1-team-selection');
+            if (savedTeam) {
+                // Handle both array and string formats
+                let teamId = Array.isArray(savedTeam) ? savedTeam[0] : savedTeam;
+                if (teamId) {
+                    team_select.val(teamId).trigger('change');
+                }
+            }
         });
     </script>
 @endsection

@@ -19,7 +19,10 @@ class DashboardController extends Controller
     {
         //$teams = Team::where('organization_id', Auth::user()->organization()->id)->pluck('name','id');
         //$periods = Periods::$type;
-        if (Auth::user()->organization()->isSynchronizing2()) flash(__('Synchronizing data with Hubspot...'), 'warning');
+        $organization = Auth::user()->organization();
+        if ($organization && $organization->isSynchronizing2()) {
+            flash(__('Synchronizing data with Hubspot...'), 'warning');
+        }
         return view('client.dashboard')->with([
             //'teams'=> $teams,
             //'periods' => $periods

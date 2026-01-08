@@ -21,7 +21,11 @@ class GoalDashboardItem extends Component
     public $goal_member=null;
 
     private function members(){
-        return Member::select('members.*')->where('organization_id', Auth::user()->organization()->id)->where('active',1)
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            return collect([]);
+        }
+        return Member::select('members.*')->where('organization_id', $organization->id)->where('active',1)
                      ->join('member_team', 'members.id','=', 'member_team.member_id')->whereIn('team_id', $this->goal['team_id'])
                      ->get();
     }
@@ -98,7 +102,12 @@ class GoalDashboardItem extends Component
             $member = $member->get()->first();
         }
 
-        $pipelines = Pipeline::where('organization_id', Auth::user()->organization()->id)->where('active', '1')->get();
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            $pipelines = collect([]);
+        } else {
+            $pipelines = Pipeline::where('organization_id', $organization->id)->where('active', '1')->get();
+        }
         $stages = collect();
         if ($this->goal->pipeline_id) $stages = Stage::where('pipeline_id', $this->goal->pipeline_id)->get();
 

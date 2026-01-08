@@ -64,12 +64,15 @@
                     <!-- <span class="badge rounded-pill bg-primary ms-2">1</span> -->
                   </a>
               @endif
-              @if (!Auth::user()->isAdmin() && !Auth::user()->organization()->isSynchronizing2())
+              @php
+                  $organization = Auth::user()->organization();
+              @endphp
+              @if (!Auth::user()->isAdmin() && $organization && !$organization->isSynchronizing2())
                   <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ route('client.hubspot.sync') }}">
                     <span class="fs-sm fw-medium">Hubspot Sync</span>
                     <!-- <span class="badge rounded-pill bg-primary ms-2">3</span> -->
                   </a>
-              @else
+              @elseif($organization && $organization->isSynchronizing2())
                   <a class="dropdown-item d-flex align-items-center justify-content-between disabled">
                       <span class="fs-sm fw-medium">Synchronizing Data..</span>
                   </a>

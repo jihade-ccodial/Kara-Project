@@ -22,12 +22,16 @@ enum DealWarning : string {
     }
 
     public function days(): int {
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            return 0; // Default value if organization is null
+        }
         return match($this)
         {
-            self::LAST_ACTIVITY => Auth::user()->organization()->warn_last_activity_days,
+            self::LAST_ACTIVITY => $organization->warn_last_activity_days ?? 0,
             self::CLOSE_DATE => 0,
-            self::STAGE_TIME_SPEND => Auth::user()->organization()->warn_stage_time_days,
-            self::CREATION_DATE => Auth::user()->organization()->warn_creation_time_days,
+            self::STAGE_TIME_SPEND => $organization->warn_stage_time_days ?? 0,
+            self::CREATION_DATE => $organization->warn_creation_time_days ?? 0,
         };
     }
 

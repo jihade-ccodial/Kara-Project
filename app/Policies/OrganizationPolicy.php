@@ -23,7 +23,8 @@ class OrganizationPolicy
 
     public function update(User $user, Organization $organization)
     {
-        return ( ($user->organization()->id === $organization->id) || $user->isAdmin() )
+        $userOrganization = $user->organization();
+        return ($userOrganization && ($userOrganization->id === $organization->id) || $user->isAdmin())
             ? Response::allow()
             : Response::denyAsNotFound();
     }

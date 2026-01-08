@@ -21,7 +21,12 @@ class Dashboard extends Component
 
     public function render()
     {
-        $this->teams = Team::where('organization_id', Auth::user()->organization()->id)->pluck('name','id');
+        $organization = Auth::user()->organization();
+        if ($organization) {
+            $this->teams = Team::where('organization_id', $organization->id)->pluck('name','id');
+        } else {
+            $this->teams = []; // Default to empty if no organization
+        }
         return view('livewire.dashboard.dashboard');
     }
 }

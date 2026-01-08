@@ -152,6 +152,9 @@ class HubspotController extends Controller
             $hubspot = HubspotClientHelper::createFactory(Auth::user());
 
             $organization = Auth::user()->organization();
+            if (!$organization) {
+                return redirect()->route('home')->with('error', 'No organization found. Please ensure you are assigned to an organization.');
+            }
             $organization->synchronizing = true;
             $organization->save();
 
@@ -176,6 +179,9 @@ class HubspotController extends Controller
             //ray($time_end - $time_start);
         } else {
             $organization = Auth::user()->organization();
+            if (!$organization) {
+                return redirect()->route('home')->with('error', 'No organization found. Please ensure you are assigned to an organization.');
+            }
             if (! $organization->isSynchronizing() && (($organization->getDayFromLastSync() == null) || ($organization->getDayFromLastSync() > 1))) {
                 \App\Jobs\ImportHubspot::dispatch(Auth::user(), $organization->id);
                 $organization->synchronizing = true;

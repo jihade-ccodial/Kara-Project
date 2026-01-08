@@ -17,17 +17,21 @@ class Pipeline extends AbstractEloquentFilter
 
     public function apply(Builder $query): Builder
     {
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            return $query->whereRaw('1 = 0'); // Return empty query
+        }
         if ( empty($this->pipeline) ) {
-            return $query->whereHas('deal', function($q){
-                $q->whereHas('pipeline', function($q2){
-                    $q2->where('organization_id', '=', Auth::user()->organization()->id);
+            return $query->whereHas('deal', function($q) use ($organization){
+                $q->whereHas('pipeline', function($q2) use ($organization){
+                    $q2->where('organization_id', '=', $organization->id);
                     $q2->where('active',1);
                 });
             });
         }else{
-            return $query->whereHas('deal', function($q){
-                $q->whereHas('pipeline', function($q2){
-                    $q2->where('organization_id', '=', Auth::user()->organization()->id);
+            return $query->whereHas('deal', function($q) use ($organization){
+                $q->whereHas('pipeline', function($q2) use ($organization){
+                    $q2->where('organization_id', '=', $organization->id);
                     $q2->where('active',1);
                     $q2->whereIn('id', $this->pipeline);
                 });

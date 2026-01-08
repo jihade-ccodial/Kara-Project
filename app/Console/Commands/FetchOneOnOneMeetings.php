@@ -49,10 +49,14 @@ class FetchOneOnOneMeetings extends Command
             return 1;
         }
 
-        if (!$user->google_token) {
+        if (!$user->google_token || (is_array($user->google_token) && empty($user->google_token))) {
             $this->error('❌ User does not have Google Calendar connected.');
             $this->error("   User: {$user->email}");
+            $this->error("   Google Name: " . ($user->google_name ?? 'Not set'));
+            $this->error("   Google Token: " . (empty($user->google_token) ? 'Not set' : 'Present but empty/invalid'));
             $this->error('   Please connect Google Calendar first via: /google/login');
+            $this->error('   Note: Clicking "Sync with Google" in profile settings redirects to OAuth.');
+            $this->error('   You must complete the OAuth flow to receive authentication tokens.');
             return 1;
         }
 

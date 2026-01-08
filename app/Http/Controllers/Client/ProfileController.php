@@ -30,11 +30,15 @@ class ProfileController extends Controller
      */
     public function show($member_id)
     {
-        $member = Member::where('id', $member_id)->where('organization_id', Auth::user()->organization()->id)->first();
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            abort(404);
+        }
+        $member = Member::where('id', $member_id)->where('organization_id', $organization->id)->first();
         if (!$member) abort(404);
 
         $teams = $member->teams()->pluck( 'teams.id' )->toArray();
-        $members = Member::where('organization_id', Auth::user()->organization()->id)->where('active', 1)->get();
+        $members = Member::where('organization_id', $organization->id)->where('active', 1)->get();
         $periods = Periods::$type;
         $meeting = $member->openMeet()->first();
 

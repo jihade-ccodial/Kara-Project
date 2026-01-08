@@ -153,9 +153,13 @@ class HubspotTasks
 
                 foreach ($tasks as $task) {
                     $properties = $task->getProperties();
-                    $member = Member::where('organization_id', Auth::user()->organization()->id)->where('hubspot_id', $properties['hubspot_owner_id'])->first();
+                    $organization = Auth::user()->organization();
+                    if (!$organization) {
+                        continue; // Skip if no organization
+                    }
+                    $member = Member::where('organization_id', $organization->id)->where('hubspot_id', $properties['hubspot_owner_id'])->first();
                     $task_db_record = Task::updateOrCreate(
-                        [ 'organization_id' => Auth::user()->organization()->id, 'hubspot_id' => $task->getId() ],
+                        [ 'organization_id' => $organization->id, 'hubspot_id' => $task->getId() ],
                         [
                             'hubspot_createdAt' => Carbon::parse($task->getCreatedAt())->toDateTimeString(),
                             'hubspot_updatedAt' => Carbon::parse($task->getUpdatedAt())->toDateTimeString(),
@@ -175,7 +179,10 @@ class HubspotTasks
                 }else $after=null;
 
             } while ( !empty($after) );
-            Task::where('organization_id', Auth::user()->organization()->id)->whereNotIn('id', $tasks_ids)->delete();
+            $organization = Auth::user()->organization();
+            if ($organization) {
+                Task::where('organization_id', $organization->id)->whereNotIn('id', $tasks_ids)->delete();
+            }
         } catch (ApiException $e) {
             echo "Exception when calling basic_api->get_page: ", $e->getMessage();
         }

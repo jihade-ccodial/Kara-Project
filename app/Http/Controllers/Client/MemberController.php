@@ -22,7 +22,11 @@ class MemberController extends Controller
     }
 
     public function datatable(){
-        $members = Member::select('members.*')->where('organization_id', Auth::user()->organization()->id); //use select to allow datatables to make queries
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            return DataTables::of(collect([]))->make();
+        }
+        $members = Member::select('members.*')->where('organization_id', $organization->id); //use select to allow datatables to make queries
         if ( isset($_POST['active']) ) $members = $members->where('active', $_POST['active']);
         if ( isset($_POST['teams']) ) $members = $members->join('member_team', 'members.id','=', 'member_team.member_id')->whereIn('team_id',$_POST['teams'] );
         return DataTables::of($members)
@@ -34,14 +38,20 @@ class MemberController extends Controller
 
     public function get_members(){
         $ret=[];
-        $members = Member::select('members.*')->where('organization_id', Auth::user()->organization()->id)->where('active',1);
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            die(json_encode([]));
+        }
+        $members = Member::select('members.*')->where('organization_id', $organization->id)->where('active',1);
         $teams = $_POST['teams'] ?? [];
         $members = $members->join('member_team', 'members.id','=', 'member_team.member_id')->whereIn('team_id',$teams);
         $members = $members->get();
         foreach ($members as $member){
-            $ret[$member->id] = $member->lastName.' '.$member->firstName;
+            $ret[] = array(
+                'id' => $member->id,
+                'name' => $member->firstName.' '.$member->lastName
+            );
         }
-
         die(json_encode($ret));
     }
 

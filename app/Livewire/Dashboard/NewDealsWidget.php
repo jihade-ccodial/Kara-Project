@@ -22,10 +22,17 @@ class NewDealsWidget extends Component
 
     #[On('teams-select-change')]
     public function teamSelection($team){
-        if (!is_array($team)) $team=[$team];
-        else if(isset($team['values'])) $team = $team['values'];
-
-        $this->selected_team = $team;
+        if (!is_array($team)) {
+            $team = [$team];
+        } else if(isset($team['values'])) {
+            $team = $team['values'];
+            // Ensure it's an array even if values is a string
+            if (!is_array($team)) {
+                $team = [$team];
+            }
+        }
+        // Ensure selected_team is always an array
+        $this->selected_team = is_array($team) ? $team : [$team];
     }
 
     #[On('dashboard-counters-period-change')]
@@ -50,12 +57,19 @@ class NewDealsWidget extends Component
         }
     }
     private function getQuery() {
-        $deals = Deal::whereHas('pipeline', function($q){
-            $q->where('organization_id', '=', Auth::user()->organization()->id);
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            return Deal::whereRaw('1 = 0'); // Return empty query
+        }
+        // Ensure selected_team is an array for whereIn
+        $teamIds = is_array($this->selected_team) ? $this->selected_team : (!empty($this->selected_team) ? [$this->selected_team] : [0]);
+
+        $deals = Deal::whereHas('pipeline', function($q) use ($organization){
+            $q->where('organization_id', '=', $organization->id);
             $q->where('active',1);
-        })->whereHas('member', function($q){
-            $q->whereHas('teams',  function($q2){
-                $q2->whereIn('teams.id', $this->selected_team);
+        })->whereHas('member', function($q) use ($teamIds){
+            $q->whereHas('teams',  function($q2) use ($teamIds){
+                $q2->whereIn('teams.id', $teamIds);
             });
         });
 

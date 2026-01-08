@@ -28,7 +28,18 @@ class HubspotDeals
 
                 foreach ($deals as $deal) {
                     $properties = $deal->getProperties();
-                    $member = Member::where('organization_id', $organization_id)->where('hubspot_id', $properties['hubspot_owner_id'])->first();
+                    
+                    // Skip if required properties are missing
+                    if (empty($properties['pipeline']) || empty($properties['dealstage'])) {
+                        \Log::warning('Skipping deal due to missing pipeline or dealstage', ['deal_id' => $deal->getId(), 'properties' => $properties]);
+                        continue;
+                    }
+                    
+                    $member = null;
+                    if (!empty($properties['hubspot_owner_id'])) {
+                        $member = Member::where('organization_id', $organization_id)->where('hubspot_id', $properties['hubspot_owner_id'])->first();
+                    }
+                    
                     $pipeline = Stage::select('stages.id as stage_id', 'pipelines.id as pipeline_id')
                         ->join('pipelines', 'pipelines.id', '=', 'stages.pipeline_id')
                         ->where('pipelines.organization_id', $organization_id)
@@ -37,28 +48,113 @@ class HubspotDeals
                         ->first();
                     if ($pipeline) {
                         $associations = $deal->getAssociations();
-                        //if ( isset($associations['emails']) ) $emails= count($associations['emails']['results']); else $emails=0;
-                        //if ( isset($associations['meetings']) ) $meetings= count($associations['meetings']['results']); else $meetings=0;
+                        
+                        // Handle nullable date fields
+                        $closedate = null;
+                        if (!empty($properties['closedate'])) {
+                            try {
+                                $closedate = Carbon::parse($properties['closedate'])->toDateTimeString();
+                            } catch (\Exception $e) {
+                                \Log::warning('Failed to parse closedate', ['value' => $properties['closedate'], 'deal_id' => $deal->getId(), 'exception' => $e->getMessage()]);
+                            }
+                        }
+                        
+                        $createdate = null;
+                        if (!empty($properties['createdate'])) {
+                            try {
+                                $createdate = Carbon::parse($properties['createdate'])->toDateTimeString();
+                            } catch (\Exception $e) {
+                                \Log::warning('Failed to parse createdate', ['value' => $properties['createdate'], 'deal_id' => $deal->getId(), 'exception' => $e->getMessage()]);
+                            }
+                        }
+                        
+                        $hs_date_entered = null;
+                        $dateEnteredKey = 'hs_date_entered_' . $properties['dealstage'];
+                        if (!empty($properties[$dateEnteredKey])) {
+                            try {
+                                $hs_date_entered = Carbon::parse($properties[$dateEnteredKey])->toDateTimeString();
+                            } catch (\Exception $e) {
+                                \Log::warning('Failed to parse hs_date_entered', ['key' => $dateEnteredKey, 'value' => $properties[$dateEnteredKey] ?? null, 'deal_id' => $deal->getId(), 'exception' => $e->getMessage()]);
+                            }
+                        }
+
+                        // Safe fallback for hubspot_createdAt (NOT NULL column)
+                        $hubspotCreatedAt = null;
+                        try {
+                            $dealCreatedAt = $deal->getCreatedAt();
+                            if ($dealCreatedAt !== null) {
+                                $hubspotCreatedAt = Carbon::parse($dealCreatedAt)->toDateTimeString();
+                            }
+                        } catch (\Exception $e) {
+                            \Log::warning('Failed to parse deal->getCreatedAt()', ['deal_id' => $deal->getId(), 'error' => $e->getMessage()]);
+                        }
+
+                        // Safe fallback for hubspot_updatedAt (NOT NULL column)
+                        $hubspotUpdatedAt = null;
+                        try {
+                            $dealUpdatedAt = $deal->getUpdatedAt();
+                            if ($dealUpdatedAt !== null) {
+                                $hubspotUpdatedAt = Carbon::parse($dealUpdatedAt)->toDateTimeString();
+                            }
+                        } catch (\Exception $e) {
+                            \Log::warning('Failed to parse deal->getUpdatedAt()', ['deal_id' => $deal->getId(), 'error' => $e->getMessage()]);
+                        }
+
+                        // Fallback chain for hs_date_entered (required NOT NULL column)
+                        // Priority: hs_date_entered property > createdate property > deal->getCreatedAt() > current timestamp
+                        if (!$hs_date_entered) {
+                            if ($createdate) {
+                                $hs_date_entered = $createdate;
+                            } elseif ($hubspotCreatedAt) {
+                                $hs_date_entered = $hubspotCreatedAt;
+                            } else {
+                                $hs_date_entered = Carbon::now()->toDateTimeString();
+                            }
+                        }
+
+                        // Fallback for createdate (required NOT NULL column)
+                        if (!$createdate) {
+                            if ($hubspotCreatedAt) {
+                                $createdate = $hubspotCreatedAt;
+                            } else {
+                                $createdate = Carbon::now()->toDateTimeString();
+                            }
+                        }
+
+                        // Fallback for hubspot_createdAt (required NOT NULL column)
+                        if (!$hubspotCreatedAt) {
+                            if ($createdate) {
+                                $hubspotCreatedAt = $createdate;
+                            } else {
+                                $hubspotCreatedAt = Carbon::now()->toDateTimeString();
+                            }
+                        }
+
+                        // Fallback for hubspot_updatedAt (required NOT NULL column)
+                        if (!$hubspotUpdatedAt) {
+                            $hubspotUpdatedAt = $hubspotCreatedAt ?: Carbon::now()->toDateTimeString();
+                        }
+                        
                         $deal_db_record = Deal::updateOrCreate(
                             ['hubspot_id' => $deal->getId()],
                             [
-                                'name' => $properties['dealname'],
-                                'amount' => $properties['amount'],
-                                'closedate' => Carbon::parse($properties['closedate'])->toDateTimeString(),
-                                'createdate' => Carbon::parse($properties['createdate'])->toDateTimeString(),
-                                'hubspot_createdAt' => Carbon::parse($deal->getCreatedAt())->toDateTimeString(),
-                                'hubspot_updatedAt' => Carbon::parse($deal->getUpdatedAt())->toDateTimeString(),
+                                'name' => $properties['dealname'] ?? 'Unnamed Deal',
+                                'amount' => $properties['amount'] ?? 0,
+                                'closedate' => $closedate,
+                                'createdate' => $createdate,
+                                'hubspot_createdAt' => $hubspotCreatedAt,
+                                'hubspot_updatedAt' => $hubspotUpdatedAt,
                                 'hubspot_pipeline_id' => $properties['pipeline'],
                                 'hubspot_stage_id' => $properties['dealstage'],
-                                'hubspot_owner_id' => $properties['hubspot_owner_id'],
+                                'hubspot_owner_id' => $properties['hubspot_owner_id'] ?? null,
                                 'member_id' => ($member) ? $member->id : null,
                                 'pipeline_id' => $pipeline['pipeline_id'],
                                 'stage_id' => $pipeline['stage_id'],
-                                'hs_date_entered' => Carbon::parse($properties['hs_date_entered_'.$properties['dealstage']])->toDateTimeString(),
-                                'hs_is_closed' => filter_var($properties['hs_is_closed'], FILTER_VALIDATE_BOOLEAN),
-                                'hs_is_closed_won' => filter_var($properties['hs_is_closed_won'], FILTER_VALIDATE_BOOLEAN),
-                                'hs_next_step' => $properties['hs_next_step'],
-                                'hs_manual_forecast_category' => $properties['hs_manual_forecast_category'],
+                                'hs_date_entered' => $hs_date_entered,
+                                'hs_is_closed' => filter_var($properties['hs_is_closed'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                                'hs_is_closed_won' => filter_var($properties['hs_is_closed_won'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                                'hs_next_step' => $properties['hs_next_step'] ?? null,
+                                'hs_manual_forecast_category' => $properties['hs_manual_forecast_category'] ?? null,
                             ]
                         );
                         $deals_ids[] = $deal_db_record->id;
@@ -85,7 +181,18 @@ class HubspotDeals
                 $q->where('organization_id', '=', $organization_id);
             })->whereNotIn('id', $deals_ids)->delete();
         } catch (\HubSpot\Client\Crm\Deals\ApiException $e) {
-            echo 'Exception when calling basic_api->get_page: ', $e->getMessage();
+            \Log::error('HubSpot API Exception in sync_with_hubspot', [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e; // Re-throw to be caught by the controller
+        } catch (\Exception $e) {
+            \Log::error('General Exception in sync_with_hubspot', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e; // Re-throw to be caught by the controller
         }
     }
 

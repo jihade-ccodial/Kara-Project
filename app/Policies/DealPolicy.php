@@ -53,7 +53,11 @@ class DealPolicy
      */
     public function update(User $user, Deal $deal)
     {
-        return $deal->pipeline->organization_id === $user->organization()->id;
+        $userOrganization = $user->organization();
+        if (!$userOrganization) {
+            return false;
+        }
+        return $deal->pipeline->organization_id === $userOrganization->id;
     }
 
     /**

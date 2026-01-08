@@ -7,6 +7,7 @@ use App\Models\Meeting;
 use App\Models\Todo;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Validator;
 use Yajra\DataTables\DataTables;
 
@@ -23,19 +24,27 @@ class TodoController extends Controller
     }
 
     public function todosDatatable(Meeting $meeting){
-        $meeting_todos = Todo::where('meeting_id', $meeting->id);
+        // Ensure both queries select the same columns explicitly
+        $meeting_todos = Todo::select('todos.*')->where('meeting_id', $meeting->id);
         $old_todos = Todo::select('todos.*')->join("meetings","meetings.id","=","todos.meeting_id")
                                             ->where('manager_id',$meeting->manager_id)
                                             ->where('target_id', $meeting->target->id)
                                             ->where('done',0);
-        $todos = $meeting_todos->union($old_todos);
+        
+        // Wrap UNION query in a subquery to allow proper ordering without table aliases
+        $unionQuery = $meeting_todos->union($old_todos);
+        
+        // Properly merge bindings: getBindings() returns all bindings from the union query
+        // Use mergeBindings() with the union query builder itself, not getQuery()
+        $todos = DB::table(DB::raw("({$unionQuery->toSql()}) as todos"))
+                   ->mergeBindings($unionQuery);
+        
         return DataTables::of($todos)
                          ->addIndexColumn() //DT_RowID
                          ->setRowId('id')
                          ->editColumn('due_date', function($row) {
                             if ($row->due_date) {
-                                //$date = Carbon::parse($row->due_date);
-                                return $row->due_date->toFormattedDateString();
+                                return Carbon::parse($row->due_date)->toFormattedDateString();
                             }else return '';
                          })
                          ->make();

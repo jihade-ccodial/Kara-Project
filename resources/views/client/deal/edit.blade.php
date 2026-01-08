@@ -11,7 +11,14 @@
                 </div>
                 <div class="col-7">
                     <h6 class="deal-card-title">
-                        <a href="{{ Auth::user()->organization()->getHubspotURL() . '/deal/' . $deal->hubspot_id  }}" target="_blank">{{ $deal->name }}</a>
+                        @php
+                            $organization = Auth::user()->organization();
+                        @endphp
+                        @if($organization)
+                        <a href="{{ $organization->getHubspotURL() . '/deal/' . $deal->hubspot_id  }}" target="_blank">{{ $deal->name }}</a>
+                        @else
+                        {{ $deal->name }}
+                        @endif
                     </h6>
                     <p class="deal-card-details">in pipeline {{ $deal->pipeline->label }}</p>
                 </div>

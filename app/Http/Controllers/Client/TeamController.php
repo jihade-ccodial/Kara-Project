@@ -25,7 +25,11 @@ class TeamController extends Controller
     }
 
     public function get_teams(){
-        $teams = Team::where('organization_id', Auth::user()->organization()->id)->pluck('name','id');
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            die(json_encode([]));
+        }
+        $teams = Team::where('organization_id', $organization->id)->pluck('name','id');
         die(json_encode($teams));
     }
     /**
@@ -46,18 +50,64 @@ class TeamController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|max:255',
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|max:255',
+            ]);
 
-        $input = $request->all();
+            $input = $request->all();
 
-        Team::create([
-            'name' => $input['name'],
-            'organization_id' => Auth::user()->organization()->id
-        ]);
+            $user = Auth::user();
+            $organization = $user->organization();
+            
+            // If organization is null, try to get first organization from user's organizations
+            if (!$organization) {
+                $organization = $user->organizations()->first();
+                
+                // If still null, return detailed error
+                if (!$organization) {
+                    $hubspot_portalId = session('hubspot_portalId');
+                    $organizationsCount = $user->organizations()->count();
+                    
+                    return response()->json([
+                        'error' => 'No organization found',
+                        'message' => 'Please ensure you are assigned to an organization.',
+                        'debug' => [
+                            'user_id' => $user->id,
+                            'user_email' => $user->email,
+                            'hubspot_portalId_in_session' => $hubspot_portalId,
+                            'organizations_count' => $organizationsCount,
+                            'organizations' => $user->organizations()->pluck('id', 'name')->toArray(),
+                        ]
+                    ], 400);
+                }
+            }
+            
+            $team = Team::create([
+                'name' => $input['name'],
+                'organization_id' => $organization->id
+            ]);
 
-        die(0);
+            return response()->json([
+                'success' => true,
+                'message' => 'Team created successfully',
+                'team' => [
+                    'id' => $team->id,
+                    'name' => $team->name,
+                ]
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed',
+                'message' => $e->getMessage(),
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An unexpected error occurred',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -93,24 +143,79 @@ class TeamController extends Controller
      */
     public function update(Request $request, Team $team)
     {
-        $validated = $request->validate([
-            'name' => 'required|max:255',
-        ]);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|max:255',
+            ]);
 
-        $input = $request->all();
+            $input = $request->all();
 
-        $team->update($input);
+            $team->update($input);
 
-        die(0);
+            return response()->json([
+                'success' => true,
+                'message' => 'Team updated successfully',
+                'team' => [
+                    'id' => $team->id,
+                    'name' => $team->name,
+                ]
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed',
+                'message' => $e->getMessage(),
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An unexpected error occurred',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function add_members(Request $request, Team $team)
     {
-        $input = $request->all();
+        try {
+            $input = $request->all();
 
-        if ( isset( $input['members']) ){
-            $members = explode(',', $input['members']);
-            $team->members()->withTimestamps()->syncWithoutDetaching($members);
+            if (isset($input['members'])) {
+                // Handle both array and comma-separated string
+                if (is_array($input['members'])) {
+                    $members = $input['members'];
+                } else {
+                    $members = explode(',', $input['members']);
+                }
+                
+                // Filter out empty values and convert to integers
+                $members = array_filter(array_map('trim', $members));
+                $members = array_map('intval', $members);
+                
+                if (!empty($members)) {
+                    $team->members()->withTimestamps()->syncWithoutDetaching($members);
+                    
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Members added to team successfully',
+                        'added_count' => count($members)
+                    ], 200);
+                } else {
+                    return response()->json([
+                        'error' => 'No members provided',
+                        'message' => 'Please select at least one member to add.'
+                    ], 400);
+                }
+            } else {
+                return response()->json([
+                    'error' => 'No members provided',
+                    'message' => 'Please select at least one member to add.'
+                ], 400);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -122,16 +227,46 @@ class TeamController extends Controller
      */
     public function destroy(Team $team)
     {
-        $team->delete();
-        die(0);
+        try {
+            $teamName = $team->name;
+            $team->delete();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Team "' . $teamName . '" deleted successfully'
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function delete_member(Request $request, Team $team)
     {
-        $input = $request->all();
+        try {
+            $input = $request->all();
 
-        if ( isset( $input['member']) ){
-            $team->members()->detach($input['member']);
+            if (isset($input['member'])) {
+                $memberId = $input['member'];
+                $team->members()->detach($memberId);
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Member removed from team successfully'
+                ], 200);
+            } else {
+                return response()->json([
+                    'error' => 'No member specified',
+                    'message' => 'Please specify which member to remove.'
+                ], 400);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 

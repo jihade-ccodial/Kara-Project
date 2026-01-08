@@ -4,13 +4,19 @@ namespace App\Livewire\Tasks;
 
 use App\Models\Activity;
 use Illuminate\Console\View\Components\Task;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class ShowTasks extends Component
 {
     public $deal;
     public $owner;
-    protected $listeners = ['refreshTasks' => '$refresh'];
+
+    #[On('refreshTasks')]
+    public function refreshTasks()
+    {
+        // Component will automatically re-render
+    }
 
     /*
     public function mount($deal, $owner)

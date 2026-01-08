@@ -24,7 +24,11 @@ class PipelineController extends Controller
 
     public function datatable(){
         //ray()->showQueries();
-        $pipelines = Pipeline::select()->where('organization_id', Auth::user()->organization()->id); //use select to allow datatables to make queries
+        $organization = Auth::user()->organization();
+        if (!$organization) {
+            return DataTables::of(collect([]))->make();
+        }
+        $pipelines = Pipeline::select()->where('organization_id', $organization->id); //use select to allow datatables to make queries
         return DataTables::of($pipelines)
                          ->addIndexColumn() //DT_RowID
                          ->setRowId('id')

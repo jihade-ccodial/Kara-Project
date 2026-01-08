@@ -199,11 +199,16 @@
                                 <span class="nav-main-link-name">{{ __('Pipelines') }}</span>
                             </a>
                         </li>
+                        @php
+                            $organization = Auth::user()->organization();
+                        @endphp
+                        @if($organization)
                         <li class="nav-main-item">
-                            <a class="nav-main-link" href="{{ route('organization.edit', Auth::user()->organization()->id ) }}">
+                            <a class="nav-main-link" href="{{ route('organization.edit', $organization->id ) }}">
                                 <span class="nav-main-link-name">{{ __('Organization') }}</span>
                             </a>
                         </li>
+                        @endif
                         <li class="nav-main-item">
                             <a class="nav-main-link" href="{{ route('client.member.index') }}">
                                 <span class="nav-main-link-name">{{ __('Members') }}</span>
