@@ -26,6 +26,13 @@ class MeetingController extends Controller
 
     public function meetingsDatatable(){
         $manager = Auth::user()->member()->first();
+        if (!$manager) {
+            return DataTables::of(collect([]))
+                             ->addIndexColumn()
+                             ->setRowId('id')
+                             ->make();
+        }
+        
         $meetings = Meeting::where('manager_id', $manager->id);
         return DataTables::of($meetings)
                          ->addIndexColumn() //DT_RowID
@@ -59,17 +66,56 @@ class MeetingController extends Controller
         ]);
 
         $input = $request->all();
-        $manager = Auth::user()->member()->first();
+        $user = Auth::user();
+        
+        // Use the User model's member() method which handles organization lookup
+        $manager = $user->member()->first();
+        
+        if (!$manager) {
+            // Try direct lookup as fallback
+            $organization = $user->organization();
+            if ($organization) {
+                $manager = Member::where('email', $user->email)
+                                 ->where('organization_id', $organization->id)
+                                 ->first();
+            }
+            
+            // If still not found, try without organization filter
+            if (!$manager) {
+                $manager = Member::where('email', $user->email)->first();
+            }
+            
+            if (!$manager) {
+                \Log::error('Member not found for user', [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                    'organizations_count' => $user->organizations()->count(),
+                    'organization' => $organization ? $organization->toArray() : null,
+                ]);
+                
+                return response()->json([
+                    'error' => 'Member not found',
+                    'message' => 'Your user account is not linked to a member. Please contact your administrator to link your account to a member in the organization.'
+                ], 400);
+            }
+        }
+        
         $target = Member::find($input['target_id']);
-        if ($manager)
-            $meet = Meeting::create([
-                'manager_id' => $manager->id,
-                'target_id' => $input['target_id'],
-                'startAt' => Carbon::now(),
-                'title' => $manager->firstName.' x '.$target->firstName
-            ]);
-        else $meet=null;
-        die(json_encode($meet->id));
+        if (!$target) {
+            return response()->json([
+                'error' => 'Target member not found',
+                'message' => 'The selected member could not be found.'
+            ], 404);
+        }
+        
+        $meet = Meeting::create([
+            'manager_id' => $manager->id,
+            'target_id' => $input['target_id'],
+            'startAt' => Carbon::now(),
+            'title' => $manager->firstName.' x '.$target->firstName
+        ]);
+        
+        return response()->json($meet->id);
     }
 
     /**
@@ -92,7 +138,12 @@ class MeetingController extends Controller
     public function edit(Meeting $meeting)
     {
         if ($this->authorize('update', $meeting)) {
-            $teams = $meeting->target()->first()->teams()->pluck( 'teams.id' )->toArray();
+            $target = $meeting->target()->first();
+            $teams = [];
+            
+            if ($target) {
+                $teams = $target->teams()->pluck('teams.id')->toArray();
+            }
 
             return view( 'client.meeting.edit' )->with( [
                 'meeting' => $meeting,
@@ -155,22 +206,36 @@ class MeetingController extends Controller
         ]);
 
         $input = $request->all();
-        $summary = $input['summary'];
+        $summary = $input['summary'] ?? '';
         $summary .= '<br>1-on-1:'. route('client.meeting.edit', $meeting);
+        
         try {
+            $target = $meeting->target()->first();
+            if (!$target) {
+                return response()->json([
+                    'error' => 'Target member not found',
+                    'message' => 'The meeting target member could not be found.'
+                ], 404);
+            }
+            
             $event = GoogleCalendars::create_event(
                 Auth::user()->google_calendar_id,
                 $input['title'],
                 $input['start_date'],
                 $summary,
-                $meeting->target()->first()
+                $target
             );
             if ($event)
                 $meeting->update([
                     'google_event_id' => $event->id
                 ]);
-        }catch(\Exception $e) { }
+        }catch(\Exception $e) { 
+            return response()->json([
+                'error' => 'Failed to create event',
+                'message' => $e->getMessage()
+            ], 500);
+        }
 
-        die(0);
+        return response()->json(['success' => true]);
     }
 }

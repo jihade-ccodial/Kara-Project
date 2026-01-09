@@ -140,16 +140,34 @@ class User extends Authenticatable
 
     public function organization()
     {
-        //return $this->belongsTo('App\Models\Organization');
+        // Return cached organization from session if available
+        if (Session::has('organization')) {
+            return Session::get('organization');
+        }
+        
+        // Try to find organization by hubspot_portalId from session (if user logged in via HubSpot)
         $hubspot_portalId = session('hubspot_portalId');
-        //if ($hubspot_portalId) return $this->organizations()->where('hubspot_portalId', $hubspot_portalId);
-        //else return null
-        //return Cache::remember('organization', 86400, function () use($hubspot_portalId) {
-            //return $this->organizations()->where( 'hubspot_portalId', $hubspot_portalId )->first();
-        //});
-        if( !Session::has('organization') )
-            Session::put('organization', $this->organizations()->where( 'hubspot_portalId', $hubspot_portalId )->first());
-        return Session::get('organization');
+        $organization = null;
+        
+        if ($hubspot_portalId) {
+            $organization = $this->organizations()->where('hubspot_portalId', $hubspot_portalId)->first();
+        }
+        
+        // If not found or hubspot_portalId not in session, fall back to first organization
+        if (!$organization) {
+            $organization = $this->organizations()->first();
+        }
+        
+        // Cache in session for future requests
+        if ($organization) {
+            Session::put('organization', $organization);
+            // Also set hubspot_portalId in session if it wasn't set but organization has it
+            if (!$hubspot_portalId && $organization->hubspot_portalId) {
+                Session::put('hubspot_portalId', $organization->hubspot_portalId);
+            }
+        }
+        
+        return $organization;
     }
 
     public function currency(){
@@ -163,7 +181,23 @@ class User extends Authenticatable
     public function member(){
          $organization = $this->organization();
          if (!$organization) {
-             return Member::whereRaw('1 = 0'); // Return empty query if no organization
+             // If no organization found, try to find member by email in any organization
+             // This can happen if user hasn't selected an organization yet
+             $member = Member::where('email', $this->email)->first();
+             if ($member) {
+                 // If member found, set the organization in session for future requests
+                 $memberOrganization = $member->organization;
+                 if ($memberOrganization) {
+                     Session::put('organization', $memberOrganization);
+                     if ($memberOrganization->hubspot_portalId) {
+                         Session::put('hubspot_portalId', $memberOrganization->hubspot_portalId);
+                     }
+                 }
+                 // Return query that will return this member
+                 return Member::where('id', $member->id);
+             }
+             // Return empty query if no organization and no member found
+             return Member::whereRaw('1 = 0');
          }
          return Member::where('email', $this->email)->where('organization_id', $organization->id);
     }

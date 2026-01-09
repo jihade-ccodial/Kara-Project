@@ -32,36 +32,36 @@ class OneToOneController extends Controller
     }
 
     public function teamMembersDatatable($team){
-        $team = Team::find($team);
-        if ($team){
-            $members = $team->activeMembers()->whereNotIn('email', [Auth::user()->email])->select('members.*'); //To fix bug with yajra Datatables with pivot
-            return DataTables::eloquent($members)
-                             ->addIndexColumn() //DT_RowID
+        // Handle case when team ID is 0 or null (no team selected)
+        if (!$team || $team == 0) {
+            return DataTables::of(collect([]))
+                             ->addIndexColumn()
                              ->setRowId('id')
-                             ->addColumn('meet', function(Member $row){
-                                //$member = Member::find($row->member_id);
-                                //if ($member){
-                                //    $meet = $member->openMeet()->first();
-                                //    if ($meet) return $meet->id;
-                                //}
-                                $meet = $row->openMeet()->first();
-                                if ($meet) return $meet->id;
-                                return null;
-                             })
-                            ->addColumn('google_event_id', function(Member $row){
-                                //$member = Member::find($row->member_id);
-                                //if ($member){
-                                //    $meet = $member->openMeet()->first();
-                                //    if ($meet) return $meet->google_event_id;
-                                //}
-                                $meet = $row->openMeet()->first();
-                                if ($meet) return $meet->google_event_id;
-                                return null;
-                            })
-                //->rawColumns(['active'])
                              ->make();
-        }else
-            return json_encode([]);
-
+        }
+        
+        $team = Team::find($team);
+        if (!$team){
+            return DataTables::of(collect([]))
+                             ->addIndexColumn()
+                             ->setRowId('id')
+                             ->make();
+        }
+        
+        $members = $team->activeMembers()->whereNotIn('email', [Auth::user()->email])->select('members.*'); //To fix bug with yajra Datatables with pivot
+        return DataTables::eloquent($members)
+                         ->addIndexColumn() //DT_RowID
+                         ->setRowId('id')
+                         ->addColumn('meet', function(Member $row){
+                            $meet = $row->openMeet()->first();
+                            if ($meet) return $meet->id;
+                            return null;
+                         })
+                        ->addColumn('google_event_id', function(Member $row){
+                            $meet = $row->openMeet()->first();
+                            if ($meet) return $meet->google_event_id;
+                            return null;
+                        })
+                        ->make();
     }
 }

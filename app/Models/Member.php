@@ -78,13 +78,19 @@ class Member extends Model
     }
 
     public function openMeet(){
+        $userMember = Auth::user()->member()->first();
+        if (!$userMember) {
+            // Return empty query if user doesn't have a corresponding member
+            return Meeting::whereRaw('1 = 0');
+        }
+        
         return Meeting::where('status', \App\Enum\MeetingStatus::ACTIVE->value)
-                        ->where(function ($q){
-                            $q->where(function($q2){
+                        ->where(function ($q) use ($userMember) {
+                            $q->where(function($q2) use ($userMember) {
                                 $q2->where('manager_id', $this->id);
-                                $q2->where('target_id', Auth::user()->member()->first()->id);
-                            })->orWhere(function($q2){
-                                $q2->where('manager_id', Auth::user()->member()->first()->id);
+                                $q2->where('target_id', $userMember->id);
+                            })->orWhere(function($q2) use ($userMember) {
+                                $q2->where('manager_id', $userMember->id);
                                 $q2->where('target_id', $this->id);
                             });
                         });
