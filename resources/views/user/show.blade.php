@@ -70,6 +70,39 @@
             </div>
         </div>
 
+        @if(!Auth::user()->isAdmin())
+        <div class="row">
+            <div class="col-6">
+                <div class="mb-4">
+                    @php
+                        $hasHubSpot = Auth::user()->hubspot_refreshToken;
+                        $organization = Auth::user()->organization();
+                    @endphp
+                    @if(!$hasHubSpot)
+                        <a type="button" class="el-button outlined-button orange" style=" padding: 8px 16px" href="{{ route('hubspot.install') }}">
+                            <i class="fa-brands fa-hubspot" style="display: inline-block; margin-right: 8px;"></i>
+                            {{ __('Connect HubSpot') }}
+                        </a>
+                        <p class="text-muted">Not connected. Click "Connect HubSpot" to sync your CRM data.</p>
+                    @else
+                        <a type="button" class="el-button outlined-button orange" style=" padding: 8px 16px" href="{{ route('hubspot.install') }}">
+                            <i class="fa-brands fa-hubspot" style="display: inline-block; margin-right: 8px;"></i>
+                            {{ __('Reconnect HubSpot') }}
+                        </a>
+                        @if($organization)
+                            <p>Connected to HubSpot - {{ $organization->name }}</p>
+                            @if($organization->hubspot_portalId)
+                                <p class="text-muted fs-sm">Portal ID: {{ $organization->hubspot_portalId }}</p>
+                            @endif
+                        @else
+                            <p class="text-success">HubSpot account connected</p>
+                        @endif
+                    @endif
+                </div>
+            </div>
+        </div>
+        @endif
+
         <div class="row">
             <div class="col-6">
                 <div class="mb-4">

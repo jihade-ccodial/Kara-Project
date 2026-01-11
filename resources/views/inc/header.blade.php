@@ -66,16 +66,24 @@
               @endif
               @php
                   $organization = Auth::user()->organization();
+                  $hasHubSpot = Auth::user()->hubspot_refreshToken;
               @endphp
-              @if (!Auth::user()->isAdmin() && $organization && !$organization->isSynchronizing2())
-                  <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ route('client.hubspot.sync') }}">
-                    <span class="fs-sm fw-medium">HubSpot Sync</span>
-                    <!-- <span class="badge rounded-pill bg-primary ms-2">3</span> -->
-                  </a>
-              @elseif($organization && $organization->isSynchronizing2())
-                  <a class="dropdown-item d-flex align-items-center justify-content-between disabled">
-                      <span class="fs-sm fw-medium">Synchronizing Data..</span>
-                  </a>
+              @if (!Auth::user()->isAdmin())
+                  @if (!$hasHubSpot)
+                      <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ route('hubspot.install') }}">
+                        <span class="fs-sm fw-medium">Connect HubSpot</span>
+                        <span class="badge rounded-pill bg-warning ms-2">!</span>
+                      </a>
+                  @elseif($organization && !$organization->isSynchronizing2())
+                      <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ route('client.hubspot.sync') }}">
+                        <span class="fs-sm fw-medium">HubSpot Sync</span>
+                        <!-- <span class="badge rounded-pill bg-primary ms-2">3</span> -->
+                      </a>
+                  @elseif($organization && $organization->isSynchronizing2())
+                      <a class="dropdown-item d-flex align-items-center justify-content-between disabled">
+                          <span class="fs-sm fw-medium">Synchronizing Data..</span>
+                      </a>
+                  @endif
               @endif
 {{--              <a class="dropdown-item d-flex align-items-center justify-content-between" href="page-faq.html">--}}
 {{--                <span class="fs-sm fw-medium">Help</span>--}}

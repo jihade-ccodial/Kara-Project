@@ -17,6 +17,15 @@ use Laravel\Socialite\Facades\Socialite;
 
 class HubspotController extends Controller
 {
+    /**
+     * Show the HubSpot install/connect page
+     * This is the landing page for marketplace installs
+     */
+    public function install()
+    {
+        return view('hubspot.install');
+    }
+
     public function hubspotRedirect()
     {
         $parameters = [
@@ -116,10 +125,17 @@ class HubspotController extends Controller
 
             Auth::loginUsingId($user->id);
 
-            return redirect()->route('home');
+            // Redirect to home with success message
+            return redirect()->route('home')->with('success', 'HubSpot account connected successfully! Your data is being synchronized.');
 
         } catch (\Throwable $th) {
-            throw $th;
+            \Log::error('HubSpot OAuth callback error', [
+                'message' => $th->getMessage(),
+                'trace' => $th->getTraceAsString()
+            ]);
+            
+            // Redirect to install page with error message
+            return redirect()->route('hubspot.install')->with('error', 'Failed to connect HubSpot account: ' . $th->getMessage());
         }
     }
 

@@ -48,6 +48,7 @@ Route::prefix('google')->name('google.')->group( function(){
 
 // Hubspot URL
 Route::prefix('hubspot')->name('hubspot.')->group( function(){
+    Route::get('install', [HubspotController::class, 'install'])->name('install'); // Public install page for marketplace
     Route::get('login', [HubspotController::class, 'hubspotRedirect'])->name('login');
     Route::get('callback', [HubspotController::class, 'hubspotCallback'])->name('callback');
 });

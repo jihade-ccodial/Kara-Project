@@ -68,22 +68,36 @@ This checklist contains all manual tasks that need to be completed before submit
 
 ### 3. Verify Install Button URL
 **Priority**: High  
-**Status**: ⬜ Pending
+**Status**: ✅ Code Implementation Complete - ⬜ Testing & Deployment Pending
 
 **Tasks**:
-- [ ] Test current install URL: `/hubspot/login`
-- [ ] Verify OAuth flow works end-to-end:
-  - [ ] Click install button
-  - [ ] Redirects to HubSpot authorization page
-  - [ ] User can authorize app
-  - [ ] Redirects back to Kara successfully
-  - [ ] Data syncs correctly
-- [ ] Create dedicated install landing page (optional but recommended):
-  - [ ] Create route: `/hubspot/install`
-  - [ ] Create view with clear instructions
-  - [ ] Add "Connect HubSpot" button
-  - [ ] Test complete flow
-- [ ] Document install URL for marketplace listing
+- [x] **Code Implementation** (COMPLETE)
+  - [x] Created dedicated install landing page (`/hubspot/install`)
+  - [x] Created professional install view with benefits
+  - [x] Added public route (no auth required)
+  - [x] Improved error handling in callback
+  - [x] Added success/error message display
+  
+- [ ] **Testing**:
+  - [ ] Test install page loads: `/hubspot/install`
+  - [ ] Verify OAuth flow works end-to-end:
+    - [ ] Click "Connect HubSpot Account" button
+    - [ ] Redirects to HubSpot authorization page
+    - [ ] User can authorize app
+    - [ ] Redirects back to Kara successfully
+    - [ ] Data syncs correctly
+    - [ ] Success message displays
+  - [ ] Test error handling:
+    - [ ] Cancel OAuth authorization
+    - [ ] Verify error message displays
+    - [ ] Verify can retry connection
+  - [ ] Test in production environment
+  
+- [ ] **Deployment**:
+  - [ ] Deploy to production
+  - [ ] Verify install URL is accessible: `https://kara.ai/hubspot/install`
+  - [ ] Test complete flow in production
+  - [ ] Document install URL for marketplace listing
 
 **Recommended Install Flow**:
 1. User clicks "Install" in marketplace
