@@ -35,6 +35,11 @@ Route::get('/', function () {
     return redirect('/home');
 });
 
+// Public Documentation Routes (no authentication required)
+Route::get('/docs/hubspot-setup-guide', [\App\Http\Controllers\DocumentationController::class, 'hubspotSetupGuide'])->name('docs.hubspot-setup-guide');
+Route::get('/terms-of-service', [\App\Http\Controllers\DocumentationController::class, 'termsOfService'])->name('docs.terms-of-service');
+Route::get('/privacy-policy', [\App\Http\Controllers\DocumentationController::class, 'privacyPolicy'])->name('docs.privacy-policy');
+
 // Google URL
 Route::prefix('google')->name('google.')->group( function(){
     Route::get('login', [GoogleController::class, 'googleRedirect'])->name('login');

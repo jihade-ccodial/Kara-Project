@@ -15,7 +15,7 @@
                         <div class="col mb-2 mt-1">
                             <div class="row justify-content-center mt-4" id="hubspotBtn" style="display: flex">
                                 <a href="{{ route('hubspot.login') }}" class="el-button hubspot-button px-2 py-3">
-                                    <i class="fa-brands fa-hubspot pe-2"></i> {{ __('Sign in with Hubspot') }}
+                                    <i class="fa-brands fa-hubspot pe-2"></i> {{ __('Sign in with HubSpot') }}
                                 </a>
                             </div>
                             <div class="row justify-content-center d-flex mt-3">

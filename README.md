@@ -45,11 +45,11 @@ This project has been upgraded from Laravel 10 to Laravel 12 and Livewire 3 beta
 After upgrading dependencies, run:
 - `php artisan test` - Run automated test suite
 - Manual testing of all Livewire components (Dashboard, Goals, Tasks, Notifications)
-- Verify Hubspot and Google Calendar integrations
+- Verify HubSpot and Google Calendar integrations
 
 ## SSL
 
-SSL is required for hubspot login.
+SSL is required for HubSpot login.
 Steps to install in XAMPP:
 - 
 

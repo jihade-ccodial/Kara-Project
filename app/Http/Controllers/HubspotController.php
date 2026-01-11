@@ -20,22 +20,34 @@ class HubspotController extends Controller
     public function hubspotRedirect()
     {
         $parameters = [
-            //'access_type' => 'offline',
-            //'application_name' => config('app.name', ''),
-            //'prompt' => "consent select_account" //ALWAYS ask for consent and returns refresh token
+            'prompt' => 'consent', // Always ask for consent to ensure refresh token is obtained
         ];
 
+        // OAuth scopes requested for HubSpot integration
+        // Scope justification:
+        // - oauth: Required for OAuth authentication
+        // - crm.objects.deals.read: Read deals, pipelines, stages, and deal associations (tasks, calls, emails, meetings)
+        // - crm.objects.owners.read: Read HubSpot owners (team members)
+        // - crm.schemas.deals.read: Read deal property schemas to understand deal structure
+        // - crm.objects.deals.write: Update deal properties (stage changes, etc.)
+        // - crm.objects.engagements.read: Read engagement details (calls, emails, meetings) associated with deals
+        // - crm.lists.read: Read HubSpot lists (planned for future use)
+        // - crm.objects.contacts.read: Read contact records (planned for future use)
+        // - crm.objects.companies.read: Read company records (planned for future use)
+        // - crm.schemas.contacts.read: Read contact property schemas (planned for future use)
+        // - crm.schemas.companies.read: Read company property schemas (planned for future use)
         $scopes = [
             'oauth',
-            'crm.lists.read',
-            'crm.objects.contacts.read',
-            'crm.objects.companies.read',
             'crm.objects.deals.read',
             'crm.objects.owners.read',
-            'crm.schemas.contacts.read',
-            'crm.schemas.companies.read',
             'crm.schemas.deals.read',
             'crm.objects.deals.write',
+            'crm.objects.engagements.read',
+            'crm.lists.read', // Planned for future use
+            'crm.objects.contacts.read', // Planned for future use
+            'crm.objects.companies.read', // Planned for future use
+            'crm.schemas.contacts.read', // Planned for future use
+            'crm.schemas.companies.read', // Planned for future use
         ];
 
         // Get redirect URI from config or construct it from app URL
@@ -55,34 +67,6 @@ class HubspotController extends Controller
         try {
             // Use stateless() to avoid InvalidStateException with OAuth
             $hubspotUser = Socialite::driver('hubspot')->stateless()->user();
-
-            // All providers...
-            //$googleUser->getId();
-            //$googleUser->getNickname();
-            //$googleUser->getName();
-            //$googleUser->getEmail();
-            //$googleUser->getAvatar();
-
-            // OAuth 2.0 providers...
-            //$token = $googleUser->token;
-            //$refreshToken = $googleUser->refreshToken;
-            //$expiresIn = $googleUser->expiresIn;
-            //Retrieving User Details From A Token (OAuth2)
-            //$user = Socialite::driver('github')->userFromToken($token);
-
-            // OAuth 1.0 providers...
-            //$token = $googleUser->token;
-            //$tokenSecret = $googleUser->tokenSecret;
-            //Retrieving User Details From A Token And Secret (OAuth1)
-            //$user = Socialite::driver('twitter')->userFromTokenAndSecret($token, $secret);
-
-            //hubspot
-            //$hubspotUser->id
-            //$hubspotUser->email
-            //$hubspotUser->token
-            //$hubspotUser->refreshToken
-            //$hubspotUser->expires_in
-            //$hubspotUser->user['hub_domain']
 
             $account_details = $this->account_details($hubspotUser->token);
             session(['hubspot_portalId' => $account_details->portalId]);
@@ -112,7 +96,6 @@ class HubspotController extends Controller
             if (! $organization) {
                 $organization = Organization::where('hubspot_portalId', $account_details->portalId)->first();
                 if ($organization) {
-                    //if(!$user->role_id) $user->role_id=2;
                     $user->organizations()->attach($organization);
                 } else {
                     $var = explode('@', $user->email);
@@ -130,11 +113,6 @@ class HubspotController extends Controller
                     $user->save();
                 }
             }
-            //$organization->update([
-            //    'hubspot_portalId' => $account_details->portalId,
-            //    'hubspot_uiDomain' => $account_details->uiDomain,
-            //    'timezone' => $account_details->timeZone
-            //]);
 
             Auth::loginUsingId($user->id);
 
@@ -148,8 +126,6 @@ class HubspotController extends Controller
     public function sync_all()
     {
         if (config('app.env') == 'local') {
-            //$time_start = microtime(true);//seconds
-
             $hubspot = HubspotClientHelper::createFactory(Auth::user());
 
             $organization = Auth::user()->organization();
@@ -175,9 +151,6 @@ class HubspotController extends Controller
                 $organization->synchronizing = false;
                 $organization->save();
             }
-
-            //$time_end = microtime(true);//seconds
-            //ray($time_end - $time_start);
         } else {
             $organization = Auth::user()->organization();
             if (!$organization) {
@@ -217,7 +190,7 @@ class HubspotController extends Controller
         curl_close($curl);
 
         if ($err) {
-            //echo "cURL Error #:" . $err;
+            \Log::error('HubSpot account details API error', ['error' => $err]);
             return [];
         } else {
             return json_decode($response);
