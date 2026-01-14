@@ -1,7 +1,0 @@
-sudo systemctl stop supervisor
-git pull origin main
-php artisan migrate
-composer upgrade --no-dev
-php artisan config:cache
-sudo systemctl start supervisor
-sudo supervisorctl start kara-worker:*
