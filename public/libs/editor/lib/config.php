@@ -1,8 +1,10 @@
 <?php if (!defined('DATATABLES')) exit(); // Ensure being used in DataTables env.
 
-// Enable error reporting for debugging (remove for production)
-error_reporting(E_ALL);
-ini_set('display_errors', '1');
+// Enable error reporting for debugging (only in debug mode)
+if (config('app.debug')) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', '1');
+}
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *

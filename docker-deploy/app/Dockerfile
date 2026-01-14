@@ -1,4 +1,4 @@
-FROM php:8.1-fpm
+FROM php:8.2-fpm
 
 # Arguments defined in docker-compose.yml
 ARG user
@@ -58,9 +58,12 @@ RUN chown -R $(whoami):$(whoami) /var/log/
 RUN chmod -R 775 /var/log
 
 RUN composer config --no-plugins allow-plugins.pestphp/pest-plugin true
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 RUN php artisan storage:link
 RUN php artisan key:generate --force
+RUN php artisan config:cache
+RUN php artisan route:cache
+RUN php artisan view:cache
 #RUN php artisan migrate:fresh --seed
 
 USER $user

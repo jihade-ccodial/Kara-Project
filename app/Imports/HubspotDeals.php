@@ -301,7 +301,7 @@ class HubspotDeals
         ]);
         try {
             $apiResponse = $client->crm()->deals()->searchApi()->doSearch($publicObjectSearchRequest);
-            var_dump($apiResponse);
+            // Debug output removed for production
         } catch (ApiException $e) {
             echo "Exception when calling search_api->do_search: ", $e->getMessage();
         }

@@ -131,11 +131,15 @@ class HubspotController extends Controller
         } catch (\Throwable $th) {
             \Log::error('HubSpot OAuth callback error', [
                 'message' => $th->getMessage(),
-                'trace' => $th->getTraceAsString()
+                'trace' => config('app.debug') ? $th->getTraceAsString() : null
             ]);
             
             // Redirect to install page with error message
-            return redirect()->route('hubspot.install')->with('error', 'Failed to connect HubSpot account: ' . $th->getMessage());
+            $errorMessage = config('app.debug') 
+                ? 'Failed to connect HubSpot account: ' . $th->getMessage()
+                : 'Failed to connect HubSpot account. Please try again.';
+            
+            return redirect()->route('hubspot.install')->with('error', $errorMessage);
         }
     }
 

@@ -381,26 +381,34 @@ class DealController extends Controller
                 'message' => $e->getMessage(),
                 'code' => $e->getCode(),
                 'user_id' => Auth::id(),
-                'trace' => $e->getTraceAsString()
+                'trace' => config('app.debug') ? $e->getTraceAsString() : null
             ]);
+            
+            $message = config('app.debug')
+                ? 'Failed to sync with HubSpot: ' . $e->getMessage() . ' (Code: ' . $e->getCode() . ')'
+                : 'Failed to sync with HubSpot. Please try again later.';
             
             return response()->json([
                 'success' => false,
                 'error' => 'HubSpot API Error',
-                'message' => 'Failed to sync with HubSpot: ' . $e->getMessage() . ' (Code: ' . $e->getCode() . ')'
+                'message' => $message
             ], 500);
             
         } catch (\Exception $e) {
             \Log::error('Deal sync error: ' . $e->getMessage(), [
                 'exception' => $e,
                 'user_id' => Auth::id(),
-                'trace' => $e->getTraceAsString()
+                'trace' => config('app.debug') ? $e->getTraceAsString() : null
             ]);
+            
+            $message = config('app.debug')
+                ? 'An error occurred while synchronizing deals: ' . $e->getMessage()
+                : 'An error occurred while synchronizing deals. Please try again later.';
             
             return response()->json([
                 'success' => false,
                 'error' => 'Sync failed',
-                'message' => 'An error occurred while synchronizing deals: ' . $e->getMessage()
+                'message' => $message
             ], 500);
         }
     }

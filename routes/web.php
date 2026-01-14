@@ -35,6 +35,9 @@ Route::get('/', function () {
     return redirect('/home');
 });
 
+// Health check endpoint (public, for monitoring)
+Route::get('/health', [\App\Http\Controllers\HealthController::class, 'check'])->name('health');
+
 // Public Documentation Routes (no authentication required)
 Route::get('/docs/hubspot-setup-guide', [\App\Http\Controllers\DocumentationController::class, 'hubspotSetupGuide'])->name('docs.hubspot-setup-guide');
 Route::get('/docs/shared-data', [\App\Http\Controllers\DocumentationController::class, 'sharedData'])->name('docs.shared-data');
@@ -90,16 +93,16 @@ Route::group(['middleware'=> ['auth', 'impersonate']], function() {
     Route::group(['middleware' => ['role:user', 'role:owner' ], 'prefix' => 'client', 'as'=> 'client.'], function() {
         Route::get( 'home', [\App\Http\Controllers\Client\DashboardController::class, 'index'])->name('home');
         //Route::resource( 'user', \App\Http\Controllers\User\UsersController::class )->only(['show', 'update', 'destroy']);
-        Route::get( 'pipeline/sync', [ PipelineController::class, 'sync_hubspot_pipelines' ] )->name( 'pipeline.sync' );
+        Route::get( 'pipeline/sync', [ PipelineController::class, 'sync_hubspot_pipelines' ] )->middleware('throttle:hubspot-sync')->name( 'pipeline.sync' );
         Route::post( 'pipeline/datatable', [ PipelineController::class, 'datatable' ] )->name( 'pipeline.datatable' );
         Route::resource( 'pipeline', PipelineController::class )->only(['index', 'update']);
 
-        Route::get( 'member/sync', [ MemberController::class, 'sync_hubspot_owners' ] )->name( 'member.sync' );
+        Route::get( 'member/sync', [ MemberController::class, 'sync_hubspot_owners' ] )->middleware('throttle:hubspot-sync')->name( 'member.sync' );
         Route::post( 'member/datatable', [ MemberController::class, 'datatable' ] )->name( 'member.datatable' );
         Route::post( 'member/get', [ MemberController::class, 'get_members' ] )->name( 'member.get' );
         Route::resource( 'member', MemberController::class )->only(['index', 'update']);
 
-        Route::get( 'deal/sync', [ DealController::class, 'sync_hubspot_deals' ] )->name( 'deal.sync' );
+        Route::get( 'deal/sync', [ DealController::class, 'sync_hubspot_deals' ] )->middleware('throttle:hubspot-sync')->name( 'deal.sync' );
         Route::get( 'deal/{deal}/stages', [ DealController::class, 'stages' ] )->name( 'deal.stages' );
         Route::post( 'deal/datatable', [ DealController::class, 'datatable' ] )->name( 'deal.datatable' );
         //Route::get('deal/{deal?}/task/create', [TaskController::class, 'create'])->name('deal.task.create');
@@ -107,7 +110,7 @@ Route::group(['middleware'=> ['auth', 'impersonate']], function() {
         Route::post( 'deal/{deal}/activity/datatable', [ ActivityController::class, 'datatable' ] )->name( 'deal.activity.datatable' );
         Route::resource( 'deal', DealController::class )->only(['index', 'update', 'edit']);
 
-        Route::get('hubspot/sync', [HubspotController::class, 'sync_all'])->name('hubspot.sync');
+        Route::get('hubspot/sync', [HubspotController::class, 'sync_all'])->middleware('throttle:hubspot-sync')->name('hubspot.sync');
 
         Route::get('team/manage', [TeamController::class, 'manage_teams'])->name('team.manage');
         Route::get('team/get', [TeamController::class, 'get_teams'])->name('team.get');
@@ -131,7 +134,7 @@ Route::group(['middleware'=> ['auth', 'impersonate']], function() {
         Route::get('one-on-ones', [\App\Http\Controllers\Client\OneOnOneMeetingController::class, 'index'])->name('one-on-ones.index');
 
         // AI Deal Briefing endpoint
-        Route::get('deal/{deal}/briefing', [\App\Http\Controllers\Client\DealBriefingController::class, 'generate'])->name('deal.briefing');
+        Route::get('deal/{deal}/briefing', [\App\Http\Controllers\Client\DealBriefingController::class, 'generate'])->middleware('throttle:ai-briefing')->name('deal.briefing');
 
         Route::post('meeting/{meeting}/todos/datatable', [TodoController::class, 'todosDatatable'])->name('meeting.todos.datatable');
         Route::post('meeting/{meeting}/todos', [TodoController::class, 'store'])->name('meeting.todos.store');

@@ -148,14 +148,18 @@ class GoogleController extends Controller
         } catch (\Throwable $th) {
             \Log::error('Google OAuth callback error: ' . $th->getMessage(), [
                 'exception' => $th,
-                'trace' => $th->getTraceAsString(),
-                'request_params' => $request->all(),
+                'trace' => config('app.debug') ? $th->getTraceAsString() : null,
+                'request_params' => config('app.debug') ? $request->all() : null,
             ]);
+            
+            $errorMessage = config('app.debug')
+                ? 'Failed to connect Google Calendar: ' . $th->getMessage()
+                : 'Failed to connect Google Calendar. Please try again.';
             
             // Try to redirect to user profile if authenticated, otherwise to login
             if (Auth::check()) {
                 return redirect()->route('user.show', Auth::user())
-                    ->with('error', 'Failed to connect Google Calendar: ' . $th->getMessage());
+                    ->with('error', $errorMessage);
             } else {
                 return redirect()->route('login')
                     ->with('error', 'Failed to connect Google Calendar. Please try again.');

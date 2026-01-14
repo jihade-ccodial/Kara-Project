@@ -71,11 +71,12 @@ class DealBriefingController extends Controller
                 'deal_id' => $dealId,
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
+                'trace' => config('app.debug') ? $e->getTraceAsString() : null,
             ]);
 
             return response()->json([
                 'error' => 'Failed to generate briefing',
-                'message' => $e->getMessage(),
+                'message' => config('app.debug') ? $e->getMessage() : 'An error occurred while generating the briefing. Please try again later.',
             ], 500);
         }
     }

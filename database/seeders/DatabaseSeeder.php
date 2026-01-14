@@ -15,8 +15,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run()
     {
-        //Remove on production
-        File::cleanDirectory( storage_path('app/public/avatars') );
+        // Only clean avatars directory in local/testing environments
+        if (app()->environment('local', 'testing')) {
+            File::cleanDirectory( storage_path('app/public/avatars') );
+        }
 
         $this->call(RoleSeeder::class);
         $this->call(UserSeeder::class);

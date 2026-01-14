@@ -15,7 +15,7 @@ Installation Steps:
 - git clone https://github.com/creativagr/kara.git
 - composer install
 - npm install
-- copy .env.examples .env
+- copy .env.example .env
 - create DB
 - php artisan key:generate
 - php artisan storage:link
@@ -47,11 +47,103 @@ After upgrading dependencies, run:
 - Manual testing of all Livewire components (Dashboard, Goals, Tasks, Notifications)
 - Verify HubSpot and Google Calendar integrations
 
+## Production Deployment
+
+### Environment Variables
+
+Before deploying to production, ensure all required environment variables are set in your `.env` file. See `.env.example` for a complete list of required variables.
+
+**Critical Production Settings:**
+- `APP_ENV=production`
+- `APP_DEBUG=false`
+- `APP_URL=https://your-domain.com`
+- `LOG_LEVEL=error` (or `warning` for more verbose logging)
+- `QUEUE_CONNECTION=database` or `redis` (recommended for production)
+
+**Required API Credentials:**
+- `HUBSPOT_CLIENT_ID` and `HUBSPOT_CLIENT_SECRET`
+- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+- `GROQ_API_KEY` (for AI features)
+
+### Production Optimizations
+
+After deployment, run these commands to optimize performance:
+
+```bash
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan optimize
+composer install --no-dev --optimize-autoloader
+npm run build
+```
+
+### Health Check Endpoint
+
+The application includes a health check endpoint at `/health` for monitoring:
+
+```bash
+curl https://your-domain.com/health
+```
+
+Returns JSON with status of:
+- Database connectivity
+- Cache connectivity
+- Storage writability
+
+### Docker Deployment
+
+See `docs/DEPLOYMENT.md` for detailed Docker deployment instructions.
+
 ## SSL
 
-SSL is required for HubSpot login.
-Steps to install in XAMPP:
-- 
+SSL is required for HubSpot OAuth login. The application must be served over HTTPS.
+
+### Local Development (XAMPP)
+
+For local development with XAMPP:
+
+1. Generate SSL certificate using OpenSSL or use a tool like `mkcert`
+2. Configure Apache to use SSL on port 443
+3. Update `APP_URL` in `.env` to use `https://localhost` or your local domain
+4. Add certificate exception in your browser
+
+### Production
+
+For production:
+- Use a valid SSL certificate (Let's Encrypt recommended)
+- Configure your web server (Nginx/Apache) to serve HTTPS
+- Ensure all HTTP traffic redirects to HTTPS
+- Update `APP_URL` in `.env` to your production HTTPS URL
+
+## Environment Variables
+
+Key environment variables (see `.env.example` for complete list):
+
+**Application:**
+- `APP_NAME` - Application name
+- `APP_ENV` - Environment (local, staging, production)
+- `APP_DEBUG` - Debug mode (false for production)
+- `APP_URL` - Application URL
+
+**Database:**
+- `DB_CONNECTION` - Database driver (mysql, pgsql, sqlite)
+- `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
+
+**OAuth:**
+- `HUBSPOT_CLIENT_ID`, `HUBSPOT_CLIENT_SECRET`, `HUBSPOT_REDIRECT_URI`
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
+
+**AI Service:**
+- `GROQ_API_KEY` - Groq API key for AI features
+
+**Mail:**
+- `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`
+
+**Cache/Queue:**
+- `CACHE_DRIVER` - Cache driver (file, redis, memcached)
+- `QUEUE_CONNECTION` - Queue driver (sync, database, redis)
+- `SESSION_DRIVER` - Session driver (file, database, redis)
 
 
 
