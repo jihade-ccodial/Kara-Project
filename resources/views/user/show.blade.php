@@ -84,6 +84,10 @@
                             {{ __('Connect HubSpot') }}
                         </a>
                         <p class="text-muted">Not connected. Click "Connect HubSpot" to sync your CRM data.</p>
+                        <p class="text-muted fs-sm mt-2">
+                            <i class="fa fa-info-circle"></i> Need help? 
+                            <a href="{{ route('docs.hubspot-setup-guide') }}" target="_blank">View setup guide</a>
+                        </p>
                     @else
                         <a type="button" class="el-button outlined-button orange" style=" padding: 8px 16px" href="{{ route('hubspot.install') }}">
                             <i class="fa-brands fa-hubspot" style="display: inline-block; margin-right: 8px;"></i>

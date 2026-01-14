@@ -249,7 +249,7 @@ This checklist ensures all requirements for HubSpot Marketplace submission are m
 
 ---
 
-**Last Updated**: January 2025
+**Last Updated**: January 2026
 
 **Status**: In Progress - Documentation Complete, Pre-Submission Tasks Pending
 

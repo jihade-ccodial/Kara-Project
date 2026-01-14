@@ -44,6 +44,69 @@ class DocumentationController extends Controller
     }
 
     /**
+     * Display the Shared Data Documentation
+     */
+    public function sharedData()
+    {
+        try {
+            $filePath = base_path('docs/shared-data.md');
+            if (!File::exists($filePath)) {
+                abort(404, 'Shared Data documentation file not found');
+            }
+            $content = File::get($filePath);
+            return view('documentation.show', [
+                'title' => 'Shared Data Documentation - Kara',
+                'content' => $this->markdownToHtml($content),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error loading shared-data documentation: ' . $e->getMessage());
+            abort(500, 'Error loading documentation: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Display the Scope Justification Documentation
+     */
+    public function scopeJustification()
+    {
+        try {
+            $filePath = base_path('docs/scope-justification.md');
+            if (!File::exists($filePath)) {
+                abort(404, 'Scope Justification documentation file not found');
+            }
+            $content = File::get($filePath);
+            return view('documentation.show', [
+                'title' => 'OAuth Scope Justification - Kara',
+                'content' => $this->markdownToHtml($content),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error loading scope-justification documentation: ' . $e->getMessage());
+            abort(500, 'Error loading documentation: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Display the Security Policy
+     */
+    public function securityPolicy()
+    {
+        try {
+            $filePath = base_path('docs/security.md');
+            if (!File::exists($filePath)) {
+                abort(404, 'Security Policy documentation file not found');
+            }
+            $content = File::get($filePath);
+            return view('documentation.show', [
+                'title' => 'Security Policy - Kara',
+                'content' => $this->markdownToHtml($content),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error loading security policy documentation: ' . $e->getMessage());
+            abort(500, 'Error loading documentation: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Convert markdown to HTML
      * Simple markdown parser for basic formatting
      */

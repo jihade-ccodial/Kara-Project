@@ -195,7 +195,7 @@ To disconnect Kara from HubSpot:
 
 ---
 
-**Last Updated**: January 2025
+**Last Updated**: January 2026
 
 **App Version**: 1.0
 

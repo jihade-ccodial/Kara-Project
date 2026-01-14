@@ -259,7 +259,7 @@ Kara follows the principle of scope minimization:
 
 ---
 
-**Last Updated**: January 2025
+**Last Updated**: January 2026
 
 **Version**: 1.0
 

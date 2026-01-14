@@ -150,6 +150,12 @@ DARK MODE
                 </div>
                 <div class="col-sm-6 order-sm-1 py-1 text-center text-sm-start">
                     <a class="fw-semibold" href="#" target="_blank">{{ config('app.name', 'Laravel') }} v{{ config('app.ver') }}</a> &copy; <span data-toggle="year-copy"></span>
+                    <span class="mx-2">|</span>
+                    <a class="fw-semibold" href="{{ route('docs.terms-of-service') }}" target="_blank">Terms</a>
+                    <span class="mx-1">·</span>
+                    <a class="fw-semibold" href="{{ route('docs.privacy-policy') }}" target="_blank">Privacy</a>
+                    <span class="mx-1">·</span>
+                    <a class="fw-semibold" href="{{ route('docs.security-policy') }}" target="_blank">Security</a>
                 </div>
             </div>
         </div>

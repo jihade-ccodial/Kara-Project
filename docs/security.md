@@ -258,7 +258,7 @@ This security documentation is reviewed and updated regularly to reflect:
 - Updates to compliance requirements
 - Response to security incidents
 
-**Last Updated**: January 2025
+**Last Updated**: January 2026
 
 **Version**: 1.0
 

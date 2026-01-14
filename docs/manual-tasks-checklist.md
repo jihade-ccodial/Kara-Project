@@ -443,7 +443,7 @@ This checklist contains all manual tasks that need to be completed before submit
 
 ---
 
-**Last Updated**: January 2025
+**Last Updated**: January 2026
 
 **Status**: Ready for Manual Task Completion
 

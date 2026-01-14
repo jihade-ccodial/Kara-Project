@@ -227,12 +227,15 @@
         <div class="info">
             <p>
                 By connecting, you authorize Kara to access your HubSpot data as specified in our 
-                <a href="{{ route('docs.terms-of-service') }}" target="_blank">Terms of Service</a> and 
-                <a href="{{ route('docs.privacy-policy') }}" target="_blank">Privacy Policy</a>.
+                <a href="{{ route('docs.terms-of-service') }}" target="_blank">Terms of Service</a>, 
+                <a href="{{ route('docs.privacy-policy') }}" target="_blank">Privacy Policy</a>, and 
+                <a href="{{ route('docs.security-policy') }}" target="_blank">Security Policy</a>.
             </p>
             <p style="margin-top: 10px;">
-                Need help? Check out our 
-                <a href="{{ route('docs.hubspot-setup-guide') }}" target="_blank">setup guide</a>.
+                <strong>Documentation:</strong><br>
+                <a href="{{ route('docs.hubspot-setup-guide') }}" target="_blank">Setup Guide</a> · 
+                <a href="{{ route('docs.shared-data') }}" target="_blank">Shared Data</a> · 
+                <a href="{{ route('docs.scope-justification') }}" target="_blank">OAuth Scopes</a>
             </p>
         </div>
     </div>

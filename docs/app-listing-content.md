@@ -164,5 +164,5 @@ https://kara.ai/docs/hubspot-setup-guide
 
 ---
 
-**Last Updated**: January 2025
+**Last Updated**: January 2026
 

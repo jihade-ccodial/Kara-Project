@@ -85,9 +85,20 @@
                       </a>
                   @endif
               @endif
-{{--              <a class="dropdown-item d-flex align-items-center justify-content-between" href="page-faq.html">--}}
-{{--                <span class="fs-sm fw-medium">Help</span>--}}
-{{--              </a>--}}
+
+              <!-- Help & Documentation Section -->
+              <div role="separator" class="dropdown-divider m-0"></div>
+              <div class="p-2">
+                  <h6 class="dropdown-header text-uppercase fs-xs fw-semibold">Help & Documentation</h6>
+                  <a class="dropdown-item d-flex align-items-center" href="{{ route('docs.hubspot-setup-guide') }}" target="_blank">
+                      <i class="fa fa-fw fa-book me-2"></i>
+                      <span class="fs-sm fw-medium">Setup Guide</span>
+                  </a>
+                  <a class="dropdown-item d-flex align-items-center" href="{{ route('docs.shared-data') }}" target="_blank">
+                      <i class="fa fa-fw fa-database me-2"></i>
+                      <span class="fs-sm fw-medium">Shared Data</span>
+                  </a>
+              </div>
             </div>
             <div role="separator" class="dropdown-divider m-0"></div>
             <div class="p-2">

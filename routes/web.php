@@ -37,8 +37,11 @@ Route::get('/', function () {
 
 // Public Documentation Routes (no authentication required)
 Route::get('/docs/hubspot-setup-guide', [\App\Http\Controllers\DocumentationController::class, 'hubspotSetupGuide'])->name('docs.hubspot-setup-guide');
+Route::get('/docs/shared-data', [\App\Http\Controllers\DocumentationController::class, 'sharedData'])->name('docs.shared-data');
+Route::get('/docs/scope-justification', [\App\Http\Controllers\DocumentationController::class, 'scopeJustification'])->name('docs.scope-justification');
 Route::get('/terms-of-service', [\App\Http\Controllers\DocumentationController::class, 'termsOfService'])->name('docs.terms-of-service');
 Route::get('/privacy-policy', [\App\Http\Controllers\DocumentationController::class, 'privacyPolicy'])->name('docs.privacy-policy');
+Route::get('/security-policy', [\App\Http\Controllers\DocumentationController::class, 'securityPolicy'])->name('docs.security-policy');
 
 // Google URL
 Route::prefix('google')->name('google.')->group( function(){
