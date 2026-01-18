@@ -35,11 +35,10 @@ class HubspotController extends Controller
         // OAuth scopes requested for HubSpot integration
         // Scope justification:
         // - oauth: Required for OAuth authentication
-        // - crm.objects.deals.read: Read deals, pipelines, stages, and deal associations (tasks, calls, emails, meetings)
+        // - crm.objects.deals.read: Read deals, pipelines, stages, and deal associations
         // - crm.objects.owners.read: Read HubSpot owners (team members)
         // - crm.schemas.deals.read: Read deal property schemas to understand deal structure
         // - crm.objects.deals.write: Update deal properties (stage changes, etc.)
-        // - crm.objects.engagements.read: Read engagement details (calls, emails, meetings) associated with deals
         // - crm.lists.read: Read HubSpot lists (planned for future use)
         // - crm.objects.contacts.read: Read contact records (planned for future use)
         // - crm.objects.companies.read: Read company records (planned for future use)
@@ -51,7 +50,6 @@ class HubspotController extends Controller
             'crm.objects.owners.read',
             'crm.schemas.deals.read',
             'crm.objects.deals.write',
-            'crm.objects.engagements.read',
             'crm.lists.read', // Planned for future use
             'crm.objects.contacts.read', // Planned for future use
             'crm.objects.companies.read', // Planned for future use
@@ -63,6 +61,18 @@ class HubspotController extends Controller
         $redirectUri = config('services.hubspot.redirect');
         if (!$redirectUri) {
             $redirectUri = url('/hubspot/callback');
+        }
+
+        // Ensure redirect URI doesn't have trailing slash (HubSpot is strict about this)
+        $redirectUri = rtrim($redirectUri, '/');
+
+        // Log the redirect URI being used (for debugging - remove in production if needed)
+        if (config('app.debug')) {
+            \Log::info('HubSpot OAuth redirect', [
+                'redirect_uri' => $redirectUri,
+                'config_value' => config('services.hubspot.redirect'),
+                'app_url' => config('app.url')
+            ]);
         }
 
         return Socialite::driver('hubspot')
@@ -125,8 +135,28 @@ class HubspotController extends Controller
 
             Auth::loginUsingId($user->id);
 
-            // Redirect to home with success message
-            return redirect()->route('home')->with('success', 'HubSpot account connected successfully! Your data is being synchronized.');
+            // Trigger initial sync after HubSpot connection
+            $shouldSync = false;
+            if ($organization) {
+                // Check if this is first sync or if sync hasn't happened
+                if (!$organization->last_sync) {
+                    $shouldSync = true;
+                }
+            }
+
+            if ($shouldSync) {
+                if (config('app.env') == 'local') {
+                    // For local environment, redirect to sync route (runs synchronously)
+                    return redirect()->route('hubspot.sync')->with('success', 'HubSpot connected! Starting initial data synchronization...');
+                } else {
+                    // For production, dispatch background job
+                    \App\Jobs\ImportHubspot::dispatch($user, $organization->id);
+                    return redirect()->route('home')->with('success', 'HubSpot account connected successfully! Your data synchronization has been started in the background. This may take a few minutes.');
+                }
+            }
+
+            // If already synced before, just redirect normally
+            return redirect()->route('home')->with('success', 'HubSpot account reconnected successfully!');
 
         } catch (\Throwable $th) {
             \Log::error('HubSpot OAuth callback error', [

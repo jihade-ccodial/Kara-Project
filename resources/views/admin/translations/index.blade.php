@@ -85,6 +85,14 @@
                 dataSrc: '',
                 data: function (d) {
                     d.language = $('#languages').val();
+                },
+                error: function(xhr, error, thrown) {
+                    console.error('DataTable Ajax error:', error, thrown);
+                    let errorMsg = 'Failed to load translations';
+                    if (xhr.responseJSON && xhr.responseJSON.error) {
+                        errorMsg = xhr.responseJSON.error;
+                    }
+                    alert(errorMsg);
                 }
             },
             pageLength: 50,
