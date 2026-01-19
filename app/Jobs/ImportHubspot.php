@@ -36,22 +36,21 @@ class ImportHubspot implements ShouldQueue
     }
 
     /**
-     * The unique ID of the job.
-     *
-     * @return string
-     */
-    /*
-     public function uniqueId()
-     {
-         return $this->user->organization_id;
-     }
-*/
-    /**
      * The number of seconds the job can run before timing out.
      *
      * @var int
      */
     public $timeout = 540;
+
+    /**
+     * The unique ID of the job to prevent duplicate processing.
+     *
+     * @return string
+     */
+    public function uniqueId()
+    {
+        return 'import-hubspot-' . $this->organization_id;
+    }
 
     /**
      * Execute the job.
@@ -62,15 +61,24 @@ class ImportHubspot implements ShouldQueue
      */
     public function handle()
     {
-        //$time_start = microtime(true);//seconds
-        $hubspot = HubspotClientHelper::createFactory($this->user);
-
         $organization = Organization::find($this->organization_id);
+        
+        // Prevent duplicate simultaneous imports
+        if ($organization->synchronizing) {
+            \Log::info('HubSpot import already in progress', [
+                'organization_id' => $organization->id,
+                'organization_name' => $organization->name
+            ]);
+            return;
+        }
+
         $organization->synchronizing = true;
         $organization->save();
 
-        DB::beginTransaction();
         try {
+            $hubspot = HubspotClientHelper::createFactory($this->user);
+
+            // Each sync method handles its own transactions internally
             HubspotPipelines::sync_with_hubspot($hubspot, $this->user, $organization->id);
             HubspotForecastCategories::sync_with_hubspot($hubspot, $this->user, $organization->id);
             HubspotOwners::sync_with_hubspot($hubspot, $this->user, $organization->id);
@@ -79,14 +87,28 @@ class ImportHubspot implements ShouldQueue
             $organization->last_sync = Carbon::now();
             $organization->synchronizing = false;
             $organization->save();
-            DB::commit();
+
+            \Log::info('HubSpot import completed successfully', [
+                'organization_id' => $organization->id,
+                'organization_name' => $organization->name,
+                'synced_at' => $organization->last_sync
+            ]);
         } catch (\Exception $e) {
-            DB::rollback();
             $organization->synchronizing = false;
             $organization->save();
+            
+            // Log the detailed error
+            \Log::error('HubSpot import failed', [
+                'organization_id' => $this->organization_id,
+                'user_id' => $this->user->id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Re-throw to mark job as failed in queue
+            throw $e;
         }
-
-        //$time_end = microtime(true);//seconds
-        //ray($time_end - $time_start);
     }
 }
