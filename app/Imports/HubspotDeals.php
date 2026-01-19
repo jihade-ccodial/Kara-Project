@@ -20,22 +20,24 @@ class HubspotDeals
             $hubspot = HubspotClientHelper::createFactory($user);
         }
         try {
+            // Cache members and stages to avoid N+1 queries (performance optimization)
+            $members = Member::where('organization_id', $organization_id)
+                ->get()
+                ->keyBy('hubspot_id');
+            
+            $stages = Stage::select('stages.id as stage_id', 'stages.hubspot_id as stage_hubspot_id', 'pipelines.id as pipeline_id', 'pipelines.hubspot_id as pipeline_hubspot_id')
+                ->join('pipelines', 'pipelines.id', '=', 'stages.pipeline_id')
+                ->where('pipelines.organization_id', $organization_id)
+                ->get()
+                ->keyBy(function($item) {
+                    return $item->pipeline_hubspot_id . '_' . $item->stage_hubspot_id;
+                });
+            
             $after = null;
             $deals_ids = [];
-            // #region agent log
-            $dealPageCount = 0;
-            $taskCallCount = 0;
-            $startTime = microtime(true);
-            // #endregion
             do {
-                // #region agent log
-                $dealPageCount++;
-                $apiStart = microtime(true);
-                // #endregion
-                $apiResponse = $hubspot->crm()->deals()->basicApi()->getPage(10, $after, 'pipeline,dealstage,dealname,amount,closedate,createdate,hubspot_owner_id,hs_lastmodifieddate,hs_time_in_,hs_is_closed,hs_is_closed_won,hs_next_step,hs_manual_forecast_category', null, 'tasks,calls,emails,meetings', false);
-                // #region agent log
-                file_put_contents('/Users/user/Downloads/Kara Test/kara-main/.cursor/debug.log', json_encode(['timestamp'=>time()*1000,'location'=>'HubspotDeals.php:26','message'=>'Deal page fetched','data'=>['page'=>$dealPageCount,'count'=>count($apiResponse['results']),'api_time_sec'=>round(microtime(true)-$apiStart,2)],'sessionId'=>'debug-session','runId'=>'run1','hypothesisId'=>'A,C']) . "\n", FILE_APPEND);
-                // #endregion
+                // Increased from 10 to 100 deals per page for better performance
+                $apiResponse = $hubspot->crm()->deals()->basicApi()->getPage(100, $after, 'pipeline,dealstage,dealname,amount,closedate,createdate,hubspot_owner_id,hs_lastmodifieddate,hs_time_in_,hs_is_closed,hs_is_closed_won,hs_next_step,hs_manual_forecast_category', null, 'tasks,calls,emails,meetings', false);
                 $deals = $apiResponse['results'];
 
                 foreach ($deals as $deal) {
@@ -46,17 +48,15 @@ class HubspotDeals
                         continue;
                     }
                     
+                    // Use cached member lookup instead of database query
                     $member = null;
                     if (!empty($properties['hubspot_owner_id'])) {
-                        $member = Member::where('organization_id', $organization_id)->where('hubspot_id', $properties['hubspot_owner_id'])->first();
+                        $member = $members->get($properties['hubspot_owner_id']);
                     }
                     
-                    $pipeline = Stage::select('stages.id as stage_id', 'pipelines.id as pipeline_id')
-                        ->join('pipelines', 'pipelines.id', '=', 'stages.pipeline_id')
-                        ->where('pipelines.organization_id', $organization_id)
-                        ->where('pipelines.hubspot_id', $properties['pipeline'])
-                        ->where('stages.hubspot_id', $properties['dealstage'])
-                        ->first();
+                    // Use cached stage/pipeline lookup instead of database query
+                    $lookupKey = $properties['pipeline'] . '_' . $properties['dealstage'];
+                    $pipeline = $stages->get($lookupKey);
                     if ($pipeline) {
                         $associations = $deal->getAssociations();
                         //if ( isset($associations['emails']) ) $emails= count($associations['emails']['results']); else $emails=0;
@@ -109,8 +109,8 @@ class HubspotDeals
                                 'hubspot_stage_id' => $properties['dealstage'],
                                 'hubspot_owner_id' => $properties['hubspot_owner_id'] ?? null,
                                 'member_id' => ($member) ? $member->id : null,
-                                'pipeline_id' => $pipeline['pipeline_id'],
-                                'stage_id' => $pipeline['stage_id'],
+                                'pipeline_id' => $pipeline ? $pipeline->pipeline_id : null,
+                                'stage_id' => $pipeline ? $pipeline->stage_id : null,
                                 'hs_date_entered' => $hs_date_entered,
                                 'hs_is_closed' => filter_var($properties['hs_is_closed'] ?? false, FILTER_VALIDATE_BOOLEAN),
                                 'hs_is_closed_won' => filter_var($properties['hs_is_closed_won'] ?? false, FILTER_VALIDATE_BOOLEAN),
@@ -121,16 +121,10 @@ class HubspotDeals
                         $deals_ids[] = $deal_db_record->id;
                         if (isset($associations['tasks'])) {
                             $tasks = $associations['tasks']['results'];
-                            // #region agent log
-                            $taskCallCount++;
-                            // #endregion
                             self::importTasks($hubspot, $organization_id, $deal_db_record->id, $tasks);
                         }
                         if (isset($associations['calls'])) {
                             $calls = $associations['calls']['results'];
-                            // #region agent log
-                            $taskCallCount++;
-                            // #endregion
                             self::importCalls($hubspot, $organization_id, $deal_db_record->id, $calls);
                         }
                     }
@@ -144,9 +138,6 @@ class HubspotDeals
                 }
 
             } while (! empty($after));
-            // #region agent log
-            file_put_contents('/Users/user/Downloads/Kara Test/kara-main/.cursor/debug.log', json_encode(['timestamp'=>time()*1000,'location'=>'HubspotDeals.php:128','message'=>'All deals fetched','data'=>['total_pages'=>$dealPageCount,'total_deals'=>count($deals_ids),'task_call_imports'=>$taskCallCount,'total_time_sec'=>round(microtime(true)-$startTime,2)],'sessionId'=>'debug-session','runId'=>'run1','hypothesisId'=>'A,B,C']) . "\n", FILE_APPEND);
-            // #endregion
             Deal::whereHas('pipeline', function ($q) use ($organization_id) {
                 $q->where('organization_id', '=', $organization_id);
             })->whereNotIn('id', $deals_ids)->delete();
