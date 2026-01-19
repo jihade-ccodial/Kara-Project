@@ -164,13 +164,12 @@ class DealController extends Controller
         return DataTables::of($deals)
                          ->addIndexColumn() //DT_RowID
                          ->setRowId('id')
-                         ->editColumn('createdate', function($row) {
-                            return $row->createdate->toFormattedDateString();
-                         })
-                         ->editColumn('closedate', function($row) {
-                            return $row->closedate->toFormattedDateString();
-                            // return $row->closedate;
-                         })
+                        ->editColumn('createdate', function($row) {
+                           return $row->createdate ? $row->createdate->toFormattedDateString() : '-';
+                        })
+                        ->editColumn('closedate', function($row) {
+                           return $row->closedate ? $row->closedate->toFormattedDateString() : '-';
+                        })
                          ->editColumn('amount', function($row) {
                             if($row->amount)
                                 //return currency_format($row->amount, $currency);
