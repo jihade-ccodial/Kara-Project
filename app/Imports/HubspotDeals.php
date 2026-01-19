@@ -22,8 +22,20 @@ class HubspotDeals
         try {
             $after = null;
             $deals_ids = [];
+            // #region agent log
+            $dealPageCount = 0;
+            $taskCallCount = 0;
+            $startTime = microtime(true);
+            // #endregion
             do {
+                // #region agent log
+                $dealPageCount++;
+                $apiStart = microtime(true);
+                // #endregion
                 $apiResponse = $hubspot->crm()->deals()->basicApi()->getPage(10, $after, 'pipeline,dealstage,dealname,amount,closedate,createdate,hubspot_owner_id,hs_lastmodifieddate,hs_time_in_,hs_is_closed,hs_is_closed_won,hs_next_step,hs_manual_forecast_category', null, 'tasks,calls,emails,meetings', false);
+                // #region agent log
+                file_put_contents('/Users/user/Downloads/Kara Test/kara-main/.cursor/debug.log', json_encode(['timestamp'=>time()*1000,'location'=>'HubspotDeals.php:26','message'=>'Deal page fetched','data'=>['page'=>$dealPageCount,'count'=>count($apiResponse['results']),'api_time_sec'=>round(microtime(true)-$apiStart,2)],'sessionId'=>'debug-session','runId'=>'run1','hypothesisId'=>'A,C']) . "\n", FILE_APPEND);
+                // #endregion
                 $deals = $apiResponse['results'];
 
                 foreach ($deals as $deal) {
@@ -109,10 +121,16 @@ class HubspotDeals
                         $deals_ids[] = $deal_db_record->id;
                         if (isset($associations['tasks'])) {
                             $tasks = $associations['tasks']['results'];
+                            // #region agent log
+                            $taskCallCount++;
+                            // #endregion
                             self::importTasks($hubspot, $organization_id, $deal_db_record->id, $tasks);
                         }
                         if (isset($associations['calls'])) {
                             $calls = $associations['calls']['results'];
+                            // #region agent log
+                            $taskCallCount++;
+                            // #endregion
                             self::importCalls($hubspot, $organization_id, $deal_db_record->id, $calls);
                         }
                     }
@@ -126,6 +144,9 @@ class HubspotDeals
                 }
 
             } while (! empty($after));
+            // #region agent log
+            file_put_contents('/Users/user/Downloads/Kara Test/kara-main/.cursor/debug.log', json_encode(['timestamp'=>time()*1000,'location'=>'HubspotDeals.php:128','message'=>'All deals fetched','data'=>['total_pages'=>$dealPageCount,'total_deals'=>count($deals_ids),'task_call_imports'=>$taskCallCount,'total_time_sec'=>round(microtime(true)-$startTime,2)],'sessionId'=>'debug-session','runId'=>'run1','hypothesisId'=>'A,B,C']) . "\n", FILE_APPEND);
+            // #endregion
             Deal::whereHas('pipeline', function ($q) use ($organization_id) {
                 $q->where('organization_id', '=', $organization_id);
             })->whereNotIn('id', $deals_ids)->delete();
